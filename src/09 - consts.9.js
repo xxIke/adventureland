@@ -9,13 +9,13 @@ const bot_states = {
     idle: {
         last_update: Date.now(),
     },
-    event: {
-        last_update: Date.now(),
-    },
     recover: {
         last_update: Date.now(),
     },
     evade: {
+        last_update: Date.now(),
+    },
+    transit: {
         last_update: Date.now(),
     },
     hunt_target: {
@@ -24,7 +24,19 @@ const bot_states = {
             mtype: "",
         }
     },
+    event: {
+        last_update: Date.now(),
+    },
     inv_mgmt: {
+        last_update: Date.now(),
+    },
+    compound: {
+        last_update: Date.now(),
+    },
+    upgrade: {
+        last_update: Date.now(),
+    },
+    restock: {
         last_update: Date.now(),
     },
     sales_town: {
@@ -35,19 +47,10 @@ const bot_states = {
         last_update: Date.now(),
         transition_servers: false,
     },
-    event: {
+    mine: {
         last_update: Date.now(),
     },
-    restock: {
+    fish: {
         last_update: Date.now(),
     },
-    upgrade: {
-        last_update: Date.now(),
-    },
-    compound: {
-        last_update: Date.now(),
-    },
-    transit: {
-        last_update: Date.now(),
-    }
 }

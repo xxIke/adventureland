@@ -24,8 +24,6 @@ class Bot {
         this.state_timeouts = {
             potion_manager: null,
             skill_manager: null,
-            attack_manager: null,
-            kite_manager: null,
             log_manager: null
         }
 
@@ -44,8 +42,6 @@ class Bot {
     start_bot() {
         this.potion_manager();
         this.skill_manager();
-        this.attack_manager();
-        this.kite_manager();
         this.log_manager();
     }
 
@@ -152,14 +148,6 @@ class Bot {
 
     skill_manager() {
         game_log("Skill Manager not yet implemented");
-    }
-
-    attack_manager() {
-        game_log("Attack Manager not yet implemented");
-    }
-
-    kite_manager() {
-        game_log("Kite Manager not yet implemented");
     }
 
     log_manager() {
