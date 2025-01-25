@@ -146,6 +146,10 @@ class Bot {
         this.state_timeouts.potion_manager = setTimeout(() => { this.potion_manager(); }, next_use);
     }
 
+    state_manager() {
+        game_log("State Manager not yet implemented");
+    }
+
     skill_manager() {
         game_log("Skill Manager not yet implemented");
     }
