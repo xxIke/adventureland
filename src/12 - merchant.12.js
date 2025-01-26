@@ -4,6 +4,7 @@ load_code(10, () => { game_log("Failed to load code slot 10 from 12"); });
 
 class Merchant extends Bot {
     constructor() {
+        super()
         this.state_timeouts.wishlist_manager = null
     }
 
@@ -42,6 +43,13 @@ class Merchant extends Bot {
 
     handle_state_transit() {
         game_log("Transit state not yet implemented");
+        let next_use = 500;
+
+        return next_use;
+    }
+
+    handle_state_event() {
+        game_log("Event state not yet implemented");
         let next_use = 500;
 
         return next_use;
@@ -111,6 +119,9 @@ class Merchant extends Bot {
                 break;
             case "transit":
                 next_use = this.handle_state_transit()
+                break;
+            case "event":
+                next_use = this.handle_state_event()
                 break;
             case "inventory_management":
                 next_use = this.handle_state_inventory_management()

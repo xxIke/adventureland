@@ -37,8 +37,12 @@ Collecting some notes/questions here to be answered. Either through code or docu
         - Event
             - Solve the event
     - Merchant
+        - Event
+            - Task the event?
+                - I think the Merchant could be responsible for unloading/loading party members to tackle certain events as needed. This functionality could also be accomplished for hunting specific targets. 
         - Inventory Management
             - Take count of everything
+            - Task hunt party appropriately
         - Compound
             - Grab things you can compound
             - Compound
@@ -59,3 +63,5 @@ Collecting some notes/questions here to be answered. Either through code or docu
             - solve mining
         - Fish
             - solve fishing
+
+- Rather than a field that tracks current state, should I have a field that tracks the state of all states? To help facilite decisions on when to switch. (e.g. as a merchant I see I'm about to swap back to inv_mgmt but I just did that a minute ago....)
