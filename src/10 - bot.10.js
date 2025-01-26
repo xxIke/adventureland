@@ -26,6 +26,7 @@ class Bot {
             skill_manager: null,
             log_manager: null,
             entity_manager: null,
+            state_manager: null,
         }
 
         this.current_state = {
@@ -59,24 +60,7 @@ class Bot {
         this.entity_manager();
         this.skill_manager();
         this.log_manager();
-    }
-
-    get_potion_indexes() {
-        let indexes = {
-            hpot0: -1,
-            hpot1: -1,
-            hpotx: -1,
-            mpot0: -1,
-            mpot1: -1,
-            mpotx: -1,
-        };
-
-        for (let pot in indexes) {
-            let index = find_indexes_in_inv({ name: pot })[0]
-            indexes[pot] = index !== undefined ? index : indexes[pot]
-        }
-
-        return indexes
+        this.state_manager();
     }
 
     determine_health_priority() {
@@ -98,41 +82,6 @@ class Bot {
         return ret;
     }
 
-    /**
-     * 
-     * @param {string} target_potion 
-     */
-    use_potion(target_potion) {
-        if (!target_potion.includes("regen")) {
-            use_skill(target_potion)
-        }
-        else {
-            let indexes = this.get_potion_indexes();
-            if (-1 != indexes[target_potion]) {
-                swap(indexes[target_potion], 41)
-            }
-            else if (target_potion[4] == 'x') {
-                target_potion.replace('x', '1');
-                this.use_potion(target_potion)
-            }
-            else if (target_potion[4] == '1') {
-                target_potion.replace('1', '0');
-                this.use_potion(target_potion)
-            }
-            else if (target_potion[4] == '0') {
-                if (target_potion.startsWith('h')) {
-                    use_skill('regen_hp')
-                }
-                else if (target_potion.startsWith('m')) {
-                    use_skill('regen_mp')
-                }
-                else {
-                    game_log("Something has gone horrible wrong trying to use a potion");
-                }
-            }
-        }
-    }
-
     potion_manager() {
         // Get how long from now until we can use a potion/regen
         let next_use = parent.next_skill.use_hp - Date.now();
@@ -143,10 +92,10 @@ class Bot {
             let mana_priority = this.determine_mana_priority();
             if (health_priority.priority == pot_priority.na && mana_priority.priority == pot_priority.na) {
                 if (health_priority.priority > mana_priority.priority) {
-                    this.use_potion(health_priority.potion);
+                    use_potion(health_priority.potion);
                 }
                 else {
-                    this.use_potion(mana_priority.potion);
+                    use_potion(mana_priority.potion);
                 }
                 next_use = parent.next_skill.use_hp - Date.now();
             }
@@ -156,18 +105,6 @@ class Bot {
         }
 
         this.state_timeouts.potion_manager = setTimeout(() => { this.potion_manager(); }, next_use > 50 ? next_use : 50);
-    }
-
-    state_manager() {
-        game_log("State Manager not yet implemented");
-    }
-
-    skill_manager() {
-        game_log("Skill Manager not yet implemented");
-    }
-
-    log_manager() {
-        game_log("Log Manager not yet implemented");
     }
 
     survey_nearby_entities() {
@@ -238,43 +175,49 @@ class Bot {
                 }
             }
         }
-    }
 
-    maintain_party() {
-        if (character.party) return;
-        let oldest_char = null;
-        let oldest_age = 0;
-        let characters = get_characters();
-        let party = get_party();
-        let missing_party_member = []
+        this.entities.target_monsters = [...target_monsters]
+        this.entities.special_monsters = [...special_monsters]
+        this.entities.hostile_monters = [...hostile_monters]
+        this.entities.hostile_players = [...hostile_players]
+        this.entities.party_members = [...party_members]
+        this.entities.players_offering_trade = [...players_offering_trade]
 
-        for (let c of characters) {
-            if (c.online >= oldest_age) {
-                oldest_char = c.name
-                oldest_age = c.online
-            }
-
-            if (c.online > 0 && !party[c.name]) {
-                missing_party_member.push(c.name)
-            }
-        }
-
-        if (character.name == oldest_char) {
-
-            for (let name of missing_party_member) {
-                send_party_invite(name);
-            }
-        }
-        else {
-            send_party_request(oldest_char);
-        }
     }
 
     entity_manager() {
-        this.maintain_party();
+        maintain_party();
         this.survey_nearby_entities();
 
         this.state_timeouts.entity_manager = setTimeout(() => { this.entity_manager(); }, 500);
+    }
+
+    handle_states() {
+        game_log("State handler not yet implemented");
+        let next_use = 5000;
+
+        return next_use;
+    }
+
+    state_manager() {
+        let next_use = this.handle_states();
+
+        this.state_timeouts.state_manager = setTimeout(() => { this.state_manager(); }, next_use > 50 ? next_use : 50);
+    }
+
+    skill_manager() {
+        game_log("Skill Manager not yet implemented");
+        let next_use = 5000;
+
+        this.state_timeouts.skill_manager = setTimeout(() => { this.skill_manager(); }, next_use > 50 ? next_use : 50);
+    }
+
+    log_manager() {
+        game_log("Log Manager not yet implemented");
+        let next_use = 5000;
+
+        this.state_timeouts.log_manager = setTimeout(() => { this.log_manager(); }, next_use > 50 ? next_use : 50);
+
     }
 
     run_test_code() {

@@ -155,6 +155,42 @@ function are_hunters_assembled() {
 }
 
 /**
+ * Will attempt to keep character in party on startup/reboot.
+ * Looks for oldest active character and sends party_request
+ * If it is not in a party but is the oldest character, will send party_invites to other active characters
+ * 
+ */
+function maintain_party() {
+    if (character.party) return;
+    let oldest_char = null;
+    let oldest_age = 0;
+    let characters = get_characters();
+    let party = get_party();
+    let missing_party_member = []
+
+    for (let c of characters) {
+        if (c.online >= oldest_age) {
+            oldest_char = c.name
+            oldest_age = c.online
+        }
+
+        if (c.online > 0 && !party[c.name]) {
+            missing_party_member.push(c.name)
+        }
+    }
+
+    if (character.name == oldest_char) {
+
+        for (let name of missing_party_member) {
+            send_party_invite(name);
+        }
+    }
+    else {
+        send_party_request(oldest_char);
+    }
+}
+
+/**
  * 
  * @param {object} item 
  * @param {string} item.name
@@ -175,6 +211,65 @@ function find_indexes_in_inv(item, inv) {
         else { continue; }
     }
     return ret;
+}
+
+/**
+ * Searches character inventory for indexes of hp/mp potions
+ * 
+ * @returns -1 if index not found, otherwise returns index number corresponding to potion
+ */
+function get_potion_indexes() {
+    let indexes = {
+        hpot0: -1,
+        hpot1: -1,
+        hpotx: -1,
+        mpot0: -1,
+        mpot1: -1,
+        mpotx: -1,
+    };
+
+    for (let pot in indexes) {
+        let index = find_indexes_in_inv({ name: pot })[0]
+        indexes[pot] = index !== undefined ? index : indexes[pot]
+    }
+
+    return indexes
+}
+
+/**
+ * Will attempt to slot given potion into highest index and use. If target potion is not found, will use next best potion that is found.
+ * Will default to regen if no potion is found
+ * @param {str} target_potion regen_hp, regen_mp, hpot0, hpot1, hpotx, mpot0, mpot1, mpotx
+ */
+function use_potion(target_potion) {
+    if (!target_potion.includes("regen")) {
+        use_skill(target_potion)
+    }
+    else {
+        let indexes = get_potion_indexes();
+        if (-1 != indexes[target_potion]) {
+            swap(indexes[target_potion], 41)
+        }
+        else if (target_potion[4] == 'x') {
+            target_potion.replace('x', '1');
+            use_potion(target_potion)
+        }
+        else if (target_potion[4] == '1') {
+            target_potion.replace('1', '0');
+            use_potion(target_potion)
+        }
+        else if (target_potion[4] == '0') {
+            if (target_potion.startsWith('h')) {
+                use_skill('regen_hp')
+            }
+            else if (target_potion.startsWith('m')) {
+                use_skill('regen_mp')
+            }
+            else {
+                game_log("Something has gone horrible wrong trying to use a potion");
+            }
+        }
+    }
 }
 
 function fulfill_player_wishlist(player) {

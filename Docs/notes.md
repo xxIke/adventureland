@@ -50,12 +50,11 @@ Collecting some notes/questions here to be answered. Either through code or docu
             - Get to party
             - Fullfill wishlist
             - Grab junk
-        - Sales Town
-            - Patrol town trying to fullfill wishlists
-            - Wander servers if set
-        - Sales Wander
-            - Patrol the map trying to fullfill wishlists
-            - Wander servers if set
+        - Sales
+            - Attempt to trade with players based on criteria
+            - Configurations for
+                - Stay in town or wander to farm locations
+                - Stay on server or wander servers
         - Mine
             - solve mining
         - Fish
