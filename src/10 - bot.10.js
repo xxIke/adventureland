@@ -24,23 +24,39 @@ class Bot {
         this.state_timeouts = {
             potion_manager: null,
             skill_manager: null,
-            log_manager: null
+            log_manager: null,
+            entity_manager: null,
         }
 
         this.current_state = {
             state_name: null,
-            state_data: null,
-            last_update: null,
+            state_data: {},
+            last_update: Date.now(),
         }
 
         this.config = {
             potion_consumption: null,
             upgrade_tier: null,
         }
+
+        this.entities = {
+            attack_target: null,
+            heal_target: null,
+            target_monsters: [],
+            special_monsters: [],
+            hostile_monters: [],
+            hostile_players: [],
+            party_members: [],
+            players_offering_trade: [],
+        }
+
+        // TODO-High-none Move this with the bot initialization; this.x() will not work right, will have to use instance.x()....
+        // map_key("4", "snippet", "this.run_test_code()");
     }
 
     start_bot() {
         this.potion_manager();
+        this.entity_manager();
         this.skill_manager();
         this.log_manager();
     }
@@ -139,7 +155,7 @@ class Bot {
             }
         }
 
-        this.state_timeouts.potion_manager = setTimeout(() => { this.potion_manager(); }, next_use);
+        this.state_timeouts.potion_manager = setTimeout(() => { this.potion_manager(); }, next_use > 50 ? next_use : 50);
     }
 
     state_manager() {
@@ -152,5 +168,116 @@ class Bot {
 
     log_manager() {
         game_log("Log Manager not yet implemented");
+    }
+
+    survey_nearby_entities() {
+        var target_monsters = []
+        var special_monsters = []
+        var hostile_monters = []
+        var hostile_players = []
+        var party_members = []
+        var players_offering_trade = []
+
+        for (let id in parent.entities) {
+            let current = parent.entities[id]
+            if ((!current.visible) || current.dead || current.rip || (current.type == "npc")) continue
+
+            // Process characters
+            if (current.type == "character") {
+                // This is (or should be) party member
+                if ((character.owner == current.owner) || (character.party && (character.party == current.party))) {
+                    party_members.push(current)
+                }
+                // This is someone targeting our party (TODO-low-none healing counts as target....)
+                else if (current.targets && current.target && is_friendly(current.target)) {
+                    hostile_players.push(current)
+                }
+
+                for (let slot in current.slots) {
+                    if (!slot.includes("trade") || !current.slots[slot]) {
+                        // Not a trade slot, or the trade slot is empty
+                        continue;
+                    }
+                    else {
+                        // They have something listed for trade
+                        players_offering_trade.push(current);
+                        break;
+                    }
+                }
+            }
+            // Process Monsters
+            else if (current.type == "monster") {
+                if (character.ctype == "merchant") {
+                    if (current.target == character.name) {
+                        hostile_monters.push(current);
+                    }
+                    else {
+                        continue;
+                    }
+                }
+
+                // TODO-HIGH-none Make sure this ligns up with possible hunter states data
+                let current_target_type = this.current_state.state_data.type ? this.current_state.state_data.type : null
+
+                // Check for special monsters
+                if (current.mtype == "phoenix" || current.mtype == "mvampire") {
+                    special_monsters.push(current)
+                }
+
+                // Check for target monsters
+                if (current_target_type && current_target_type == current.mtype) {
+                    target_monsters.push(current)
+                }
+                else if (!current_target_type) {
+                    // TODO-low-none
+                    // Maybe we add any in range we can 1-shot
+                }
+
+                if (current.target && is_friendly(current.target)) {
+                    hostile_monters.push(current)
+                }
+            }
+        }
+    }
+
+    maintain_party() {
+        if (character.party) return;
+        let oldest_char = null;
+        let oldest_age = 0;
+        let characters = get_characters();
+        let party = get_party();
+        let missing_party_member = []
+
+        for (let c of characters) {
+            if (c.online >= oldest_age) {
+                oldest_char = c.name
+                oldest_age = c.online
+            }
+
+            if (c.online > 0 && !party[c.name]) {
+                missing_party_member.push(c.name)
+            }
+        }
+
+        if (character.name == oldest_char) {
+
+            for (let name of missing_party_member) {
+                send_party_invite(name);
+            }
+        }
+        else {
+            send_party_request(oldest_char);
+        }
+    }
+
+    entity_manager() {
+        this.maintain_party();
+        this.survey_nearby_entities();
+
+        this.state_timeouts.entity_manager = setTimeout(() => { this.entity_manager(); }, 500);
+    }
+
+    run_test_code() {
+        game_log("Currently no test code loaded");
     }
 }

@@ -11,13 +11,15 @@ class Hunter extends Bot {
 
     start_bot() {
         super.start_bot();
+        this.attack_manager();
+        this.kite_manager();
     }
 
     attack_manager() {
         game_log("Attack Manager not yet implemented");
         next_use = parent.next_skill.attack - Date.now();
 
-        this.state_timeouts.attack_manager = setTimeout(() => { this.attack_manager(); }, next_use);
+        this.state_timeouts.attack_manager = setTimeout(() => { this.attack_manager(); }, next_use > 50 ? next_use : 50);
     }
 
     kite_manager() {
