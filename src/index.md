@@ -8,7 +8,8 @@
 
 | slot | Name | Function |
 | ---- | ---- | -------- |
-| 1 | test_code | store test functions to be run |
+| 1 | main | Universal bot loader that any bot can run and get the appropriate code started |
+| 2 | test_code | store test functions to be run |
 | 9 | const_values | storage of constant parameters |
 | 10 | bot | some basic code/startup that should go everywhere |
 | 11 | hunter | code to run hunter bot |
