@@ -121,6 +121,7 @@ function isLocationObject(obj) {
  */
 function nearLocation(location, threshold) {
     if (threshold === undefined) threshold = 10;
+    if (location.map && (location.map !== character.map)) return false;
     return isLocationObject(location) ? distance(character, location) < threshold : false;
 }
 
@@ -163,7 +164,7 @@ function getPotionIndexes() {
 
     for (let pot in indexes) {
         let foundIndexes = findInventoryIndexes({ name: pot })
-        indexex[pot] = indefoundIndexesxes.length > 0 ? foundIndexes[0] : indexes[pot]
+        indexes[pot] = indefoundIndexesxes.length > 0 ? foundIndexes[0] : indexes[pot]
     }
 
     return indexes;

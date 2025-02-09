@@ -4,7 +4,7 @@
  * Base functionality for all bots
  * 
  */
-load_code(1, () => { game_log("Failed to load code slot 1 from 11"); });
+
 load_code(2, () => { game_log("Failed to load code slot 2 from 11"); });
 load_code(3, () => { game_log("Failed to load code slot 3 from 11"); });
 load_code(4, () => { game_log("Failed to load code slot 4 from 11"); });
@@ -195,7 +195,7 @@ class Bot {
         }
 
         // Custom log functionality
-        this.logger = new Logger(character.name)
+        this.logger = new Logger()
 
         // Custom move functionality
         this.moveManager = new MoveManger()
@@ -400,7 +400,8 @@ class Bot {
 
         let debugMsg = ""
         for (let entitiesArr in this.trackedEntities) {
-            debugMsg += `${entitiesArr}: ${this.trackedEntities[entitiesArr].length}\n`
+            if (!this.trackedEntities[entitiesArr]) continue;
+            debugMsg += `${entitiesArr}: ${this.trackedEntities[entitiesArr].length}\n`;
         }
         this.logger.dLog(debugLogLevels.controlFlow2, debugMsg)
     }

@@ -68,8 +68,8 @@ class MoveManger {
             }
 
             // Short move
-            if ((location.map && (character.map == location.map)) || nearLocation(location, character.speed)) {
-                xmove(mov_x, mov_y)
+            if (nearLocation(location, character.speed)) {
+                move(mov_x, mov_y)
                 ret = moveReturnCodes.moveInProgress;
             }
             else {
@@ -77,19 +77,11 @@ class MoveManger {
                 this.moveLocation = { ...location };
                 this.timeStamp = Date.now();
                 this.timeout = timeout ? timeout : 5000;
-                smart_move(location, {
-                    success: () => {
-                        this.isMoving = false;
-                        this.moveLocation = null;
-                        this.timeStamp = null;
-                        this.timeout = 0;
-                    },
-                    fail: (reason) => {
-                        this.isMoving = false;
-                        this.moveLocation = null;
-                        this.timeStamp = null;
-                        this.timeout = 0;
-                    }
+                smart_move(location, () => {
+                    this.isMoving = false;
+                    this.moveLocation = null;
+                    this.timeStamp = null;
+                    this.timeout = 0;
                 });
                 ret = moveReturnCodes.movePending;
             };

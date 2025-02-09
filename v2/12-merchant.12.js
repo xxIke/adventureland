@@ -4,12 +4,7 @@
  * Extended Merchant Functionality
  * 
  */
-load_code(1, () => { game_log("Failed to load code slot 1 from 12"); });
-load_code(2, () => { game_log("Failed to load code slot 2 from 12"); });
-load_code(3, () => { game_log("Failed to load code slot 3 from 12"); });
-load_code(4, () => { game_log("Failed to load code slot 4 from 12"); });
-load_code(5, () => { game_log("Failed to load code slot 5 from 12"); });
-load_code(6, () => { game_log("Failed to load code slot 6 from 12"); });
+
 load_code(11, () => { game_log("Failed to load code slot 11 from 12"); });
 
 class Merchant extends Bot {

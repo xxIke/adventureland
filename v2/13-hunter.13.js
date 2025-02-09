@@ -4,17 +4,11 @@
  * Extended Hunter Functionality
  * 
  */
-
-load_code(1, () => { game_log("Failed to load code slot 1 from 13"); });
-load_code(2, () => { game_log("Failed to load code slot 2 from 13"); });
-load_code(3, () => { game_log("Failed to load code slot 3 from 13"); });
-load_code(4, () => { game_log("Failed to load code slot 4 from 13"); });
-load_code(5, () => { game_log("Failed to load code slot 5 from 13"); });
-load_code(6, () => { game_log("Failed to load code slot 6 from 13"); });
 load_code(11, () => { game_log("Failed to load code slot 11 from 13"); });
 
 class Hunter extends Bot {
     constructor() {
+        super()
         this.handlerTimeouts.kiteHandler = null;
         this.handlerTimeouts.attackHandler = null;
 
@@ -22,6 +16,14 @@ class Hunter extends Bot {
         this.config.attackHandlerTimeout = Math.floor((1000 / character.frequency) / 2);
 
         this.priorityTarget = null
+
+        this.botStates.huntTarget.stateData = { ...G.maps.main.monsters[14] };
+        if (!this.logger) {
+            log("no logger from the start...")
+        }
+        if (!this.botStates) {
+            log("no states from the start....")
+        }
     }
 
     init() {
@@ -154,7 +156,34 @@ class Hunter extends Bot {
     }
 
     kiteTarget(target) {
+        if (!target) {
+            this.logger.dLog(debugLogLevels.controlFlow0, "Kite requested with no target")
+            return;
+        }
+        // Get target coordinates (going dest if moving)
+        const target_x = target.moving ? target.going_x : target.real_x !== undefined ? target.real_x : target.x
+        const target_y = target.moving ? target.going_y : target.real_y !== undefined ? target.real_y : target.y
+        // Determine how far away I'd like to be
+        const desiredDistance = Math.ceil(character.range * 0.9);
+        // Determine how far I can move before attempting to move again
+        let moveDistance = character.speed * (this.config.kiteHandlerTimeout / 1000);
+        // Get current distance
+        const dx = target_x - character.real_x;
+        const dy = target_y - character.real_y;
+        const currentDistance = Math.sqrt((dx * dx) + (dy * dy));
+        // Determine how far I should move
+        moveDistance = Math.min(moveDistance, currentDistance - desiredDistance)
+        // Determine new x,y based on move
+        const dx_normal = dx / currentDistance;
+        const dy_normal = dy / currentDistance;
 
+        let new_x = character.real_x + dx_normal * moveDistance;
+        let new_y = character.real_y + dy_normal * moveDistance;
+
+        // TODO - need to select my point along the desired distance circle so that I kite enemy
+        // Rather than just picking closes point on desired distance circle to advance/retreat as appropriate
+
+        this.moveManager.move({ x: new_x, y: new_y }, this.config.kiteHandlerTimeout);
     }
 
     kiteHandler() {
@@ -170,6 +199,24 @@ class Hunter extends Bot {
         // TODO
 
         this.handlerTimeouts.attackHandler = setTimeout(() => { this.attackHandler(); }, this.config.attackHandlerTimeout);
+
+    }
+
+    stateHandlerIdle() {
+        if (!this.logger) {
+            log("WTF.... no logger?");
+        } else {
+            log("But there is a logger....")
+            this.logger.dLog(debugLogLevels.controlFlow0, "Entered Hunter Idle Handler");
+        }
+        let ret = {
+            nextState: this.botStates.huntTarget,
+            nextUse: 50
+        }
+
+        super.stateHandlerIdle()
+
+        return ret
 
     }
 

@@ -23,7 +23,8 @@ const infoLogLevels = {
 }
 
 class Logger {
-    constructor(characterName) {
+    constructor() {
+        log("Log created...")
         this.debugLog = {
             variableName: localStorageVariables.debugLog,
             log: [],
@@ -48,7 +49,7 @@ class Logger {
     /**
      * 
      * @param {debugLogLevels} level 
-     * @param {{timestamp: String, msg:String}} msg
+     * @param {String} msg
      */
     dLog(level, msg) {
         if (level === 0) {
@@ -67,7 +68,7 @@ class Logger {
     /**
      * 
      * @param {infoLogLevels} level 
-     * @param {{timestamp: String, msg:String}} msg
+     * @param {String} msg
      */
     iLog(level, msg) {
         if (level === 0) {
