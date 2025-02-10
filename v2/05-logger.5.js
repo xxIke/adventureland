@@ -24,7 +24,6 @@ const infoLogLevels = {
 
 class Logger {
     constructor() {
-        log("Log created...")
         this.debugLog = {
             variableName: localStorageVariables.debugLog,
             log: [],

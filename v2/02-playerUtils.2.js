@@ -26,7 +26,7 @@ function maintainParty() {
             oldestAge = current.online;
         }
 
-        if (current.online > 0 && !myParty(current.name)) {
+        if (current.online > 0 && !myParty[current.name]) {
             missingPartyMembers.push(current.name)
         }
     }
@@ -164,7 +164,7 @@ function getPotionIndexes() {
 
     for (let pot in indexes) {
         let foundIndexes = findInventoryIndexes({ name: pot })
-        indexes[pot] = indefoundIndexesxes.length > 0 ? foundIndexes[0] : indexes[pot]
+        indexes[pot] = foundIndexes.length > 0 ? foundIndexes[0] : indexes[pot]
     }
 
     return indexes;
@@ -177,7 +177,7 @@ function getPotionIndexes() {
  */
 function usePotion(targetPotion) {
     // If it's a request to regen
-    if (!targetPotion.includes("regen")) {
+    if (targetPotion.includes("regen")) {
         use_skill(targetPotion);
     }
     // Else manage indexes to use correct potion
@@ -186,7 +186,7 @@ function usePotion(targetPotion) {
         // If I have the desired potion
         if (-1 != indexes[targetPotion]) {
             // Move it to the last index
-            swap(indexes[targetPotion], character.inventory.length - 1);
+            swap(indexes[targetPotion], character.items.length - 1);
         }
         else if (targetPotion.includes("potx")) {
             targetPotion.replace("x", "1");

@@ -18,12 +18,6 @@ class Hunter extends Bot {
         this.priorityTarget = null
 
         this.botStates.huntTarget.stateData = { ...G.maps.main.monsters[14] };
-        if (!this.logger) {
-            log("no logger from the start...")
-        }
-        if (!this.botStates) {
-            log("no states from the start....")
-        }
     }
 
     init() {
@@ -56,15 +50,19 @@ class Hunter extends Bot {
             this.trackedEntities.healTarget = null
         }
 
+
+
         // Hostile player
         let hostile = null
+        if (this.trackedEntities.attackTarget && this.trackedEntities.hostilePlayers.some(member => member.name == this.trackedEntities.attackTarget.name)) {
+            return this.trackedEntities.attackTarget;
+        }
         for (let entry of this.trackedEntities.hostilePlayers) {
             // TODO - Double check they are indeed hostile?
             if (entry.owner == character.owner) continue
-
             // TODO - improve target prioritization
             if (hostile == null) {
-                if ((entry.targets < 1) || (entry == this.trackedEntities.attackTarget)) {
+                if ((entry.targets < 1) || (entry == this.trackedEntities.attackTarget) || (entry.target == character.name)) {
                     hostile = entry
                 }
             }
@@ -78,10 +76,13 @@ class Hunter extends Bot {
         }
 
         // Hostile strong monster
+        if (this.trackedEntities.attackTarget && this.trackedEntities.hostileMonsters.some(member => member.id == this.trackedEntities.attackTarget.id)) {
+            return this.trackedEntities.attackTarget;
+        }
         for (let entry of this.trackedEntities.hostileMonsters) {
             // TODO - improve target prioritization
             if (hostile == null) {
-                if ((entry.targets < 1) || (entry == this.trackedEntities.attackTarget)) {
+                if ((entry.targets < 1) || (entry == this.trackedEntities.attackTarget) || (entry.target == character.name)) {
                     hostile = entry
                 }
             }
@@ -94,12 +95,18 @@ class Hunter extends Bot {
             return hostile
         }
         // Special Monster
+        if (this.trackedEntities.attackTarget && this.trackedEntities.specialMonsters.some(member => member.id == this.trackedEntities.attackTarget.id)) {
+            return this.trackedEntities.attackTarget;
+        }
         if (this.trackedEntities.specialMonsters.length > 0) {
             this.trackedEntities.attackTarget = this.trackedEntities.specialMonsters[0]
             return this.trackedEntities.specialMonsters[0]
         }
 
         // Target Monster
+        if (this.trackedEntities.attackTarget && this.trackedEntities.targetMonsters.some(member => member.id == this.trackedEntities.attackTarget.id)) {
+            return this.trackedEntities.attackTarget;
+        }
         let minDistance = 9000000
         for (let entry of this.trackedEntities.targetMonsters) {
             // TODO - Prioritize based on reward potential?
@@ -126,6 +133,9 @@ class Hunter extends Bot {
         }
 
         // Weak monster
+        if (this.trackedEntities.attackTarget && this.trackedEntities.easyMonsters.some(member => member.id == this.trackedEntities.attackTarget.id)) {
+            return this.trackedEntities.attackTarget;
+        }
         minDistance = 9000000
         for (let entry of this.trackedEntities.easyMonsters) {
             if (entry.hp > character.attack) continue;
@@ -188,27 +198,47 @@ class Hunter extends Bot {
 
     kiteHandler() {
         this.logger.dLog(debugLogLevels.controlFlow0, "Hunter.kiteHandler()");
-        let priorityTarget = this.determinePriorityTarget()
-        this.kiteTarget(priorityTarget)
-
+        this.kiteTarget(this.trackedEntities.healTarget ? this.trackedEntities.healTarget : this.trackedEntities.attackTarget)
         this.handlerTimeouts.kiteHandler = setTimeout(() => { this.kiteHandler(); }, this.config.kiteHandlerTimeout);
+    }
+
+    entityHandler() {
+        this.logger.dLog(debugLogLevels.controlFlow0, "Hunter.entitiyHandler()");
+        super.entityHandler()
+        this.determinePriorityTarget()
     }
 
     attackHandler() {
         this.logger.dLog(debugLogLevels.controlFlow0, "Hunter.attackHandler()");
         // TODO
+        for (let chest in get_chests()) {
+            loot();
+        }
+
+        const target = this.trackedEntities.healTarget ? this.trackedEntities.healTarget : this.trackedEntities.attackTarget
+        let nextUse = this.config.attackHandlerTimeout
+        if (target && !can_attack(target)) {
+            nextUse = 100;
+        }
+        else if (target) {
+            if (this.trackedEntities.healTarget) {
+                heal(target)
+            }
+            else {
+                attack(target)
+            }
+        }
+        else {
+            nextUse = 500;
+        }
 
         this.handlerTimeouts.attackHandler = setTimeout(() => { this.attackHandler(); }, this.config.attackHandlerTimeout);
 
     }
 
     stateHandlerIdle() {
-        if (!this.logger) {
-            log("WTF.... no logger?");
-        } else {
-            log("But there is a logger....")
-            this.logger.dLog(debugLogLevels.controlFlow0, "Entered Hunter Idle Handler");
-        }
+        this.logger.dLog(debugLogLevels.controlFlow0, "Entered Hunter Idle Handler");
+
         let ret = {
             nextState: this.botStates.huntTarget,
             nextUse: 50

@@ -38,7 +38,7 @@ class Bot {
                     attemptedBackup: false,
                 },
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerIdle,
+                stateHandler: this.stateHandlerIdle.bind(this),
                 defaultTimeout: 60 * 1000
             },
             follow: {
@@ -47,28 +47,28 @@ class Bot {
                     followTarget: undefined
                 },
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerFollow,
+                stateHandler: this.stateHandlerFollow.bind(this),
                 defaultTimeout: 60 * 1000
             },
             transition: {
                 stateName: "transition",
                 stateData: {},
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerTransition,
+                stateHandler: this.stateHandlerTransition.bind(this),
                 defaultTimeout: 60 * 1000
             },
             evade: {
                 stateName: "evade",
                 stateData: {},
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerEvade,
+                stateHandler: this.stateHandlerEvade.bind(this),
                 defaultTimeout: 60 * 1000
             },
             recover: {
                 stateName: "recover",
                 stateData: {},
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerRecover,
+                stateHandler: this.stateHandlerRecover.bind(this),
                 defaultTimeout: 60 * 1000
             },
             // Merchant States
@@ -82,7 +82,7 @@ class Bot {
                     toSell: ["hpbelt", "hpamulet"]
                 },
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerInvMgmt,
+                stateHandler: this.stateHandlerInvMgmt.bind(this),
                 defaultTimeout: 10 * 1000
             },
             upgrade: {
@@ -93,7 +93,7 @@ class Bot {
                     haveUpgraded: false,
                 },
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerUpgrade,
+                stateHandler: this.stateHandlerUpgrade.bind(this),
                 defaultTimeout: 10 * 1000
             },
             compound: {
@@ -104,7 +104,7 @@ class Bot {
                     haveCompounded: false,
                 },
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerCompound,
+                stateHandler: this.stateHandlerCompound.bind(this),
                 defaultTimeout: 10 * 1000
             },
             restock: {
@@ -117,7 +117,7 @@ class Bot {
                     haveJunk: false,
                 },
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerRestock,
+                stateHandler: this.stateHandlerRestock.bind(this),
                 defaultTimeout: 10 * 1000
             },
             wander: {
@@ -131,7 +131,7 @@ class Bot {
                     wanderIndex: 0,
                 },
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerWander,
+                stateHandler: this.stateHandlerWander.bind(this),
                 defaultTimeout: 10 * 1000
             },
             // Hunter States
@@ -149,7 +149,7 @@ class Bot {
                     "grow": true
                 },
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerMonsterHunt,
+                stateHandler: this.stateHandlerMonsterHunt.bind(this),
                 defaultTimeout: 60 * 1000
             },
             huntTarget: {
@@ -166,14 +166,14 @@ class Bot {
                     "grow": true
                 },
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerHuntTarget,
+                stateHandler: this.stateHandlerHuntTarget.bind(this),
                 defaultTimeout: 60 * 1000
             },
             event: {
                 stateName: "event",
                 stateData: {},
                 lastUpdate: undefined,
-                stateHandler: this.stateHandlerEvent,
+                stateHandler: this.stateHandlerEvent.bind(this),
                 defaultTimeout: 60 * 1000
             },
         }
@@ -211,6 +211,18 @@ class Bot {
         this.handlerTimeouts.localStorageHandler = setTimeout(() => { this.localStorageHandler(); }, this.config.localStorageHandlerTimeout);
         this.handlerTimeouts.skillHandler = setTimeout(() => { this.skillHandler(); }, this.config.skillHandlerTimeout);
         this.handlerTimeouts.stateHandler = setTimeout(() => { this.stateHandler(); }, this.config.stateHandlerTimeout);
+    }
+
+    softStop() {
+
+    }
+
+    hardStop() {
+
+    }
+
+    setFollow() {
+
     }
 
     /**
@@ -327,7 +339,7 @@ class Bot {
                     partyMembers.push(current)
                 }
                 // This is someone targeting our party
-                else if (current.target && this.trackedEntities.partyMembers.some(member => member.name === current.target)) {
+                else if (current.target && (current.target == character.name || this.trackedEntities.partyMembers.some(member => member.name === current.target))) {
                     // TODO - possible bug in this logic as healing will set a character's target field
                     // In theory friendlies should have already been caught by the first if, but friends approaching to form a party could register here
                     hostilePlayers.push(current)
@@ -364,7 +376,7 @@ class Bot {
                     continue;
                 }
 
-                if (current.target && this.trackedEntities.partyMembers.some(member => member.name === current.target)) {
+                if (current.target && (current.target == character.name || this.trackedEntities.partyMembers.some(member => member.name === current.target))) {
                     hostileMonsters.push(current);
                 }
 
@@ -462,15 +474,17 @@ class Bot {
         // Recover state backup
         if (!this.botStates.idle.stateData.attemptedBackup) {
             let stateBackup = get(localStorageVariables.stateBackup)
-            if (stateBackup) stateBackup = JSON.parse(stateBackup)
-            for (let state in stateBackup) {
-                let timeSinceUpdate = Date.now() - stateBackup[state].lastUpdate
-                if (timeSinceUpdate < (2 * this.config.localStorageHandlerTimeout)) {
-                    this.botStates = stateBackup
-                    let configBackup = get(localStorageVariables.configBackup)
-                    if (configBackup) this.config = JSON.parse(configBackup)
-                    break;
+            if (stateBackup) {
+                stateBackup = JSON.parse(stateBackup)
+                for (let state in stateBackup) {
+                    let timeSinceUpdate = Date.now() - stateBackup[state].lastUpdate
+                    if (timeSinceUpdate < (2 * this.config.localStorageHandlerTimeout)) {
+                        this.botStates = stateBackup
+                        let configBackup = get(localStorageVariables.configBackup)
+                        if (configBackup) this.config = JSON.parse(configBackup)
+                        break;
 
+                    }
                 }
             }
             this.botStates.idle.stateData.attemptedBackup = true
