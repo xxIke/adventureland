@@ -152,23 +152,23 @@ function findInventoryIndexes(item, inv) {
  * 
  * @returns -1 if index not found, otherwise returns index number corresponding to potion
  */
-function getPotionIndexes() {
-    let indexes = {
-        hpot0: -1,
-        hpot1: -1,
-        hpotx: -1,
-        mpot0: -1,
-        mpot1: -1,
-        mpotx: -1
-    };
+// function getPotionIndexes() {
+//     let indexes = {
+//         hpot0: -1,
+//         hpot1: -1,
+//         hpotx: -1,
+//         mpot0: -1,
+//         mpot1: -1,
+//         mpotx: -1
+//     };
 
-    for (let pot in indexes) {
-        let foundIndexes = findInventoryIndexes({ name: pot })
-        indexes[pot] = foundIndexes.length > 0 ? foundIndexes[0] : indexes[pot]
-    }
+//     for (let pot in indexes) {
+//         let foundIndexes = findInventoryIndexes({ name: pot })
+//         indexes[pot] = foundIndexes.length > 0 ? foundIndexes[0] : indexes[pot]
+//     }
 
-    return indexes;
-}
+//     return indexes;
+// }
 
 /**
  * Will attempt to slot given potion into highest index and use. If target potion is not found, will use next best potion that is found.
@@ -275,7 +275,7 @@ function findEmptyTradeSlot() {
     let ret = null
     for (let slot in character.slots) {
         if (!slot.includes("trade")) continue;
-        if (character.slots[slot] !== null) {
+        if (character.slots[slot] === null) {
             ret = slot;
             break;
         }

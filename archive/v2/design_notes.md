@@ -3,22 +3,22 @@
 ## File Structure
 
 - 01-consts.1.js: Used to standardize references to objects (e.g. states, potions, priority, local_storage variables, etc...)
-- 02-player_utils.2.js: bot independent functions to simiplify code for player related tasks (find_in_inventory, use_pot_x, is_friendly, etc...)
-- 03-monsters.3.js: bot independent functions to simiplify code for monster related tasks (find_target_pack, dps_prediction, etc...)
+- 02-player_utils.2.js: bot independent functions to simplify code for player related tasks (find_in_inventory, use_pot_x, is_friendly, etc...)
+- 03-monsters.3.js: bot independent functions to simplify code for monster related tasks (find_target_pack, dps_prediction, etc...)
 - 04-move.4.js: custom movement system to replace smart_move
-- 05-logger.5.js: Logger class for simlified debug logs that don't go to console
+- 05-logger.5.js: Logger class for simplified debug logs that don't go to console
 - 06-events.6.js: Event handler functions for server events
 - 07 <-> 09: Reserved for future use as needed to split up code
 - 10-main.10.js: Main file bots should load to handle loading the rest of target code depending on code base implementation (so I don't have to update each bot's main file)
 - 11-bot.11.js: Main bot class that sets up necessary handlers and universal logic that is dependent class variables
 - 12-merchant.12.js: Merchant class that extends bot class to handle merchant specific functionality (restock, sales, upgrade/compounds, hunter tasking, etc...)
 - 13-hunter.13.js: Hunter class that extends bot class to handle hunt specific functionality (hunt task, monster_hunt, etc... )
-- 14-rogue.14.js: Rogue class that extned hunter class to handle any rogue specific deviations and skill mechanics
-- 15-ranger.15.js: Ranger class that extned hunter class to handle any ranger specific deviations and skill mechanics
-- 16-warrior.16.js: Warrior class that extned hunter class to handle any warrior specific deviations and skill mechanics
-- 17-priest.17.js: Priest class that extned hunter class to handle any priest specific deviations and skill mechanics
-- 18-paladin.18.js: Paladin class that extned hunter class to handle any paladin specific deviations and skill mechanics
-- 19-mage.19.js: Mage class that extned hunter class to handle any mage specific deviations and skill mechanics
+- 14-rogue.14.js: Rogue class that extend hunter class to handle any rogue specific deviations and skill mechanics
+- 15-ranger.15.js: Ranger class that extend hunter class to handle any ranger specific deviations and skill mechanics
+- 16-warrior.16.js: Warrior class that extend hunter class to handle any warrior specific deviations and skill mechanics
+- 17-priest.17.js: Priest class that extend hunter class to handle any priest specific deviations and skill mechanics
+- 18-paladin.18.js: Paladin class that extend hunter class to handle any paladin specific deviations and skill mechanics
+- 19-mage.19.js: Mage class that extend hunter class to handle any mage specific deviations and skill mechanics
 
 ## V4 Design
 
@@ -30,7 +30,7 @@ Timeout handlers will call their specified handler function on a timeout with a 
 **Handlers**:
 - Bot:
     - potion_handler: 
-        - Purpose: Will determine which potion takes priority (health or mana) and then determine the apprioritate potion to use (regen, pot0, pot1, potX).
+        - Purpose: Will determine which potion takes priority (health or mana) and then determine the appropriate potion to use (regen, pot0, pot1, potX).
         - next_use: based on which potion was used (regen is 2x the cooldown of pot).
           Will default to config variable for potion_handler_timeout if no potion was deemed necessary.
     - entity_handler:
@@ -38,13 +38,13 @@ Timeout handlers will call their specified handler function on a timeout with a 
         - next_use: based on config variable for entity_handler_timeout
     - log_handler:
         - Purpose: Ensure bot's state/logs are saved to designated space in local storage for debugging or recovering from reset as needed
-        - next_use: based on config varaible for log_handler_timeout
+        - next_use: based on config variable for log_handler_timeout
     - skill_handler:
         - Purpose: Will use skills based on bots current state, config variables, and tracked entities.
         - next_use: based on config variable for skill_handler_timeout
     - state_handler:
         - Purpose: Will manage bots current state and transition/correct as needed.
-        - next_use: based on return from a specfic state_handler (e.g. hunt_target_handler).
+        - next_use: based on return from a specific state_handler (e.g. hunt_target_handler).
           Will default to a config variable for state_handler_timeout as needed
 - Merchant:
     - sales_handler:
@@ -55,7 +55,7 @@ Timeout handlers will call their specified handler function on a timeout with a 
           Will need to figure out desired strategy for determining desired hunt targets
         - next_use: based on config variable for hunter_handler_timeout
     - restock_handler:
-        - Purpose: Check if hunters need more potions, to offload excess inventory, or to have updgraded gear delivered
+        - Purpose: Check if hunters need more potions, to offload excess inventory, or to have upgraded gear delivered
         - next_use: based on config variable for restock_handler_timeout or should be able to be triggered by hunters
 - Hunters:
     - kite_handler: 
@@ -126,7 +126,7 @@ States represent the current goals/objectives of a bot.
         - next_use: based on monster_hunt logic for grouping party at NPC, getting and evaluating quests, and transitions to monster_hunt target(s)
         - next_state: monster_hunt if there are still valid monster_hunt targets, event if there is an on-going event I have logic to handle, hunt_target if nothing else
     - hunt_target:
-        - Purpose: Hunt target specified by merchant. This could be to farm a specific item or to prioritize gold acquistion or xp for party
+        - Purpose: Hunt target specified by merchant. This could be to farm a specific item or to prioritize gold acquisition or xp for party
         - next_use: based on config variable for state_handler_timeout
         - next_state: monster_hunt if all hunter's monster_hunt status has expired and new quests can be picked, event if there is an on-going event I have logic to handle, hunt_target if nothing else
     - event:
@@ -154,7 +154,7 @@ I believe I will be able to combine the mine, fish, and sales states by calculat
 
 I wont be able to take on every monster_hunt quest.
 They seem to be quests for the packs that haven't been touched in the longest time and some of them will have grown to strong for me to handle.
-I think attempting to handle these hsould be a priority so I can collect the special currency
+I think attempting to handle these should be a priority so I can collect the special currency
 
 I haven't explored any events yet.
 I think this can wait until the rest of the core logic is in place
@@ -181,7 +181,7 @@ I'll end up saving a decent amount of information in local storage and also use 
     - Value: The current pack that hunters should target
 - Hunter Commander
     - Key: `huntCommander`
-    - Value: Character in charage of coordinating hunter specific actions (e.g. monster_hunt)
+    - Value: Character in charge of coordinating hunter specific actions (e.g. monster_hunt)
 - Monster Hunt Target
     - Key: `monsterHuntTarget`
     - Value: The current pack that hunters should target for monster_hunt

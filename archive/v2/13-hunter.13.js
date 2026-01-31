@@ -202,10 +202,15 @@ class Hunter extends Bot {
         this.handlerTimeouts.kiteHandler = setTimeout(() => { this.kiteHandler(); }, this.config.kiteHandlerTimeout);
     }
 
+    offloadJunk() {
+        // TODO - check if merchant is present/nearby and send him excess items
+    }
+
     entityHandler() {
         this.logger.dLog(debugLogLevels.controlFlow0, "Hunter.entitiyHandler()");
         super.entityHandler()
         this.determinePriorityTarget()
+
     }
 
     attackHandler() {
@@ -238,22 +243,21 @@ class Hunter extends Bot {
 
     stateHandlerIdle() {
         this.logger.dLog(debugLogLevels.controlFlow0, "Entered Hunter Idle Handler");
-
         let ret = {
             nextState: this.botStates.huntTarget,
             nextUse: 50
         }
 
         super.stateHandlerIdle()
+        // TODO - Group up with other hunters -> transition states
 
         return ret
 
     }
 
     stateHandlerFollow() {
-        this.logger.dLog(debugLogLevels.fatal, "Entered Base Bot Handler");
-        // TODO
-        // Merchant/Hunter classes should override these handlers
+        this.logger.dLog(debugLogLevels.fatal, "Entered Hunter Follow Handler");
+        // TODO - 
         let ret = {
             nextState: this.currentState,
             nextUse: this.currentState.defaultTimeout
@@ -263,9 +267,8 @@ class Hunter extends Bot {
     }
 
     stateHandlerTransition() {
-        this.logger.dLog(debugLogLevels.fatal, "Entered Base Bot Handler");
-        // TODO
-        // Merchant/Hunter classes should override these handlers
+        this.logger.dLog(debugLogLevels.fatal, "Entered Hunter Transition Handler");
+        // TODO - Gather party, set cruise speed once gathered/arrived?
         let ret = {
             nextState: this.currentState,
             nextUse: this.currentState.defaultTimeout
@@ -275,9 +278,8 @@ class Hunter extends Bot {
     }
 
     stateHandlerEvade() {
-        this.logger.dLog(debugLogLevels.fatal, "Entered Base Bot Handler");
+        this.logger.dLog(debugLogLevels.fatal, "Entered Hunter Evade Handler");
         // TODO
-        // Merchant/Hunter classes should override these handlers
         let ret = {
             nextState: this.currentState,
             nextUse: this.currentState.defaultTimeout
@@ -287,69 +289,8 @@ class Hunter extends Bot {
     }
 
     stateHandlerRecover() {
-        this.logger.dLog(debugLogLevels.fatal, "Entered Base Bot Handler");
+        this.logger.dLog(debugLogLevels.fatal, "Entered Hunter Recover Handler");
         // TODO
-        // Merchant/Hunter classes should override these handlers
-        let ret = {
-            nextState: this.currentState,
-            nextUse: this.currentState.defaultTimeout
-        }
-
-        return ret
-    }
-
-    stateHandlerInvMgmt() {
-        this.logger.dLog(debugLogLevels.fatal, "Entered Base Bot Handler");
-        // TODO
-        // Merchant/Hunter classes should override these handlers
-        let ret = {
-            nextState: this.currentState,
-            nextUse: this.currentState.defaultTimeout
-        }
-
-        return ret
-    }
-
-    stateHandlerUpgrade() {
-        this.logger.dLog(debugLogLevels.fatal, "Entered Base Bot Handler");
-        // TODO
-        // Merchant/Hunter classes should override these handlers
-        let ret = {
-            nextState: this.currentState,
-            nextUse: this.currentState.defaultTimeout
-        }
-
-        return ret
-    }
-
-    stateHandlerCompound() {
-        this.logger.dLog(debugLogLevels.fatal, "Entered Base Bot Handler");
-        // TODO
-        // Merchant/Hunter classes should override these handlers
-        let ret = {
-            nextState: this.currentState,
-            nextUse: this.currentState.defaultTimeout
-        }
-
-        return ret
-    }
-
-    stateHandlerRestock() {
-        this.logger.dLog(debugLogLevels.fatal, "Entered Base Bot Handler");
-        // TODO
-        // Merchant/Hunter classes should override these handlers
-        let ret = {
-            nextState: this.currentState,
-            nextUse: this.currentState.defaultTimeout
-        }
-
-        return ret
-    }
-
-    stateHandlerWander() {
-        this.logger.dLog(debugLogLevels.fatal, "Entered Base Bot Handler");
-        // TODO
-        // Merchant/Hunter classes should override these handlers
         let ret = {
             nextState: this.currentState,
             nextUse: this.currentState.defaultTimeout
@@ -359,9 +300,8 @@ class Hunter extends Bot {
     }
 
     stateHandlerMonsterHunt() {
-        this.logger.dLog(debugLogLevels.fatal, "Entered Base Bot Handler");
+        this.logger.dLog(debugLogLevels.fatal, "Entered Hunter MonsterHunt Handler");
         // TODO
-        // Merchant/Hunter classes should override these handlers
         let ret = {
             nextState: this.currentState,
             nextUse: this.currentState.defaultTimeout
@@ -371,9 +311,8 @@ class Hunter extends Bot {
     }
 
     stateHandlerHuntTarget() {
-        this.logger.dLog(debugLogLevels.fatal, "Entered Base Bot Handler");
+        this.logger.dLog(debugLogLevels.fatal, "Entered Hunter Hunt Handler");
         // TODO
-        // Merchant/Hunter classes should override these handlers
         let ret = {
             nextState: this.currentState,
             nextUse: this.currentState.defaultTimeout
@@ -383,9 +322,8 @@ class Hunter extends Bot {
     }
 
     stateHandlerEvent() {
-        this.logger.dLog(debugLogLevels.fatal, "Entered Base Bot Handler");
+        this.logger.dLog(debugLogLevels.fatal, "Entered Hunter Event Handler");
         // TODO
-        // Merchant/Hunter classes should override these handlers
         let ret = {
             nextState: this.currentState,
             nextUse: this.currentState.defaultTimeout

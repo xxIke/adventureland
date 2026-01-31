@@ -52,7 +52,9 @@ class Bot {
             },
             transition: {
                 stateName: "transition",
-                stateData: {},
+                stateData: {
+                    nextState: null
+                },
                 lastUpdate: undefined,
                 stateHandler: this.stateHandlerTransition.bind(this),
                 defaultTimeout: 60 * 1000
@@ -181,7 +183,7 @@ class Bot {
         // Information about the current bot state
         this.currentState = this.botStates.idle
 
-        // Entitiy information of note
+        // Entity information of note
         this.trackedEntities = {
             attackTarget: null,
             healTarget: null,
@@ -214,15 +216,15 @@ class Bot {
     }
 
     softStop() {
-
+        // TODO - Cancel most timeouts
     }
 
     hardStop() {
-
+        // TODO - Cancel all timeouts
     }
 
     setFollow() {
-
+        // TODO - callable by hotkey to set bots to follow
     }
 
     /**
