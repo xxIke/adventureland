@@ -1,0 +1,31 @@
+{
+  "workstream": "REPLACE_slug",
+  "title": "REPLACE: Human-Readable Title",
+  "status": "active",
+  "objective": "REPLACE: What this workstream accomplishes",
+  "scope": "REPLACE: What is included",
+  "why_now": "REPLACE: Why this matters now",
+  "current_focus": ["REPLACE: Current priority"],
+  "related_context": [],
+  "recent_updates": [
+    {
+      "date": "REPLACE_YYYY-MM-DD",
+      "summary": "Workstream created",
+      "artifacts": [],
+      "next": ["REPLACE: First concrete action"]
+    }
+  ],
+  "items": {
+    "REPLACE_item_slug": {
+      "description": "REPLACE: What this item covers",
+      "status": "failing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "REPLACE_YYYY-MM-DD",
+      "next_action": "REPLACE: Single most useful next move",
+      "evidence": [],
+      "notes": ""
+    }
+  }
+}

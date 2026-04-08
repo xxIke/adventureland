@@ -1,0 +1,1 @@
+../../.agent/rules/implementation-work.md

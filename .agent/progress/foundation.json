@@ -1,0 +1,92 @@
+{
+  "workstream": "foundation",
+  "title": "Project Foundation (D1)",
+  "status": "active",
+  "objective": "Establish project structure, agentic worksurface, and development environment before writing application code",
+  "scope": "Project directory scaffold, agent surface, engineering standards, build environment, project documentation",
+  "why_now": "M1 and M3 require foundation before implementation. This is the first workstream.",
+  "current_focus": ["Complete project scaffold", "Establish agentic worksurface"],
+  "related_context": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md"
+  ],
+  "recent_updates": [
+    {
+      "date": "2026-04-07",
+      "summary": "Project scaffold and agentic worksurface established. Directory structure created (docs/, src/, scripts/). Agent surface created with mandates, standards, policies, rules, skills, workflows. Claude and Codex tool surfaces configured with symlinks.",
+      "artifacts": [
+        ".agent/",
+        ".claude/",
+        ".codex/",
+        "scripts/",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "README.md"
+      ],
+      "next": [
+        "Capture project-level requirements from temp-new_system/ analysis",
+        "Spec-plan component specifications (D2)",
+        "Validate build/bundling approach for AL load_code() system",
+        "Set up local development environment"
+      ]
+    }
+  ],
+  "items": {
+    "project_structure": {
+      "description": "Create project directory scaffold: docs/, src/, scripts/",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "2026-04-07",
+      "next_action": "None — complete",
+      "evidence": ["docs/", "src/", "scripts/"],
+      "notes": "Flat src/ structure — AL code editor may not support subdirectories"
+    },
+    "agent_surface": {
+      "description": "Establish agentic worksurface with mandates, standards, policies, rules, skills, workflows",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "2026-04-07",
+      "next_action": "None — complete. Adapted from IkeBot with full .claude/ and .codex/ parity.",
+      "evidence": [".agent/", ".claude/", ".codex/", "scripts/symlink_to_agent.sh"],
+      "notes": ""
+    },
+    "project_readme": {
+      "description": "Create project README with vision, structure, components, and status",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "2026-04-07",
+      "next_action": "None — complete",
+      "evidence": ["README.md"],
+      "notes": ""
+    },
+    "requirements_capture": {
+      "description": "Capture project-level requirements from prior analysis (temp-new_system/)",
+      "status": "failing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "2026-04-07",
+      "next_action": "Translate temp-new_system/ analysis into docs/requirements.md following M1 documentation chain",
+      "evidence": [],
+      "notes": "Prior analysis identified 9 components, 50+ requirements, and anti-patterns to avoid"
+    },
+    "build_environment": {
+      "description": "Establish build tooling for bundling src/ into AL load_code() slots",
+      "status": "failing",
+      "priority": "medium",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "2026-04-07",
+      "next_action": "Investigate esbuild/rollup for single-bundle output targeting AL code editor",
+      "evidence": [],
+      "notes": "Prior analysis recommends build step to avoid brittle numbered-file loading"
+    }
+  }
+}

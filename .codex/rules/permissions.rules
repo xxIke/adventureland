@@ -1,0 +1,58 @@
+# Codex exec-policy template.
+#
+# These rules control which shell commands Codex may run outside the sandbox
+# without prompting. They are the closest Codex analogue to Claude Code's
+# allow/deny Bash permissions.
+#
+# Keep shared instruction/routing rules in .agent/rules/. Keep Codex execution
+# policy here in .codex/rules/*.rules.
+
+prefix_rule(
+    pattern = ["git", ["status", "log", "diff", "branch", "show", "stash", "checkout", "switch"]],
+    decision = "allow",
+    justification = "Repository inspection and local branch navigation are allowed.",
+    match = [
+        "git status",
+        "git log --oneline",
+        "git diff",
+        "git branch -a",
+        "git show HEAD~1",
+        "git stash list",
+        "git checkout main",
+        "git switch feature-branch",
+    ],
+    not_match = [
+        "git commit -m seed",
+        "git push origin main",
+    ],
+)
+
+prefix_rule(
+    pattern = ["ls"],
+    decision = "allow",
+    justification = "Directory inspection is allowed.",
+    match = [
+        "ls",
+        "ls -la",
+    ],
+    not_match = [
+        "bash -lc ls",
+    ],
+)
+
+prefix_rule(
+    pattern = ["git", ["commit", "push", "merge", "rebase", "reset"]],
+    decision = "forbidden",
+    justification = "History mutation and remote publish require explicit user direction.",
+    match = [
+        "git commit -m seed",
+        "git push origin main",
+        "git merge feature-branch",
+        "git rebase main",
+        "git reset --hard HEAD~1",
+    ],
+    not_match = [
+        "git status",
+        "git diff",
+    ],
+)

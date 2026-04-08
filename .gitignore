@@ -1,1 +1,23 @@
 **secret_sauce**
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment and secrets
+.env
+.env.*
+
+# Logs
+*.log
+
+# Editor artifacts
+.vscode/
+.idea/
+*.swp
+
+# Claude Code local settings
+.claude/settings.local.json

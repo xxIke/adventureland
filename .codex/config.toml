@@ -1,0 +1,24 @@
+# Project-local Codex defaults for this repository.
+#
+# Keep repository-specific behavior here. User-global preferences still live in
+# ~/.codex/config.toml.
+#
+# Note: Codex can skip project-local .codex layers when the project is marked
+# untrusted in the user's global config.
+
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "live"
+
+# Optional model defaults:
+# model = "gpt-5.4"
+# model_reasoning_effort = "high"
+# personality = "pragmatic"
+
+[sandbox_workspace_write]
+network_access = false
+
+[features]
+# Stable example for agentic workflows. Remove if your project does not want
+# sub-agent support enabled by default.
+multi_agent = true
