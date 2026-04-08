@@ -18,28 +18,31 @@ Set up project structure, agentic worksurface, engineering standards, and develo
 **Completed:**
 - Agent surface scaffolded (rules, skills, standards, policies)
 - Project structure established: `docs/`, `src/`, `scripts/`
+- Requirements captured (R1-R50) in `docs/requirements/`
+- Architecture documented (7 decisions, 8 systems) in `docs/architecture/`
+- Contracts index established in `docs/contracts/`
+- Implementation roadmap (5 phases) in `docs/roadmap/`
 
 **Remaining:**
-- Capture project-level requirements and component specifications
-- Validate build/bundling approach for AL's `load_code()` system
+- Set up esbuild build pipeline
 - Set up local development/testing environment
 
-### D2: Document Component Specifications
+### D2: Author Component Contracts
 
-Spec-plan each of the 9 identified components before implementation begins.
+Author per-component contracts before implementation begins, sequenced by roadmap phase.
 
-- **Status:** Pending (blocked by D1 completion)
-- **Applies to:** Component documentation work
-- **Rationale:** M1 (documentation-first). Each component needs requirements, design, and contracts documented before code is written.
-- **Components:** Runtime & Shared State, World Model, Objective Selection, Party Coordination, Movement & Navigation, Combat & Class Logic, Merchant & Inventory, Progression Planning, Logging & Configuration
+- **Status:** Pending (blocked by D1 build environment)
+- **Applies to:** Contract authoring in `docs/contracts/`
+- **Rationale:** M1 (documentation-first). Each component needs contracts documented before code is written.
+- **Sequence:** Phase 0 (scheduler, event-bus) -> Phase 1 (world-model, logging) -> Phase 2 (combat, potion-regen, movement) -> Phase 3 (party, objective) -> Phase 4 (merchant)
 
-### D3: Runtime First
+### D3: Phase 0 Skeleton First
 
-The runtime component (bootstrap, lifecycle, shared state) is the dependency for all other components.
+The skeleton (build pipeline, scheduler, event bus, shared context) is the dependency for all domain systems.
 
-- **Status:** Pending (blocked by D2 for runtime spec)
-- **Applies to:** Implementation ordering
-- **Rationale:** M3 (core before dependent). All other components depend on the runtime's entry point, loop management, and shared state infrastructure.
+- **Status:** Pending (blocked by D2 for scheduler/event-bus contracts)
+- **Applies to:** Implementation ordering per `docs/roadmap/`
+- **Rationale:** M3 (core before dependent). All domain systems depend on the skeleton's entry point, scheduler, event bus, and shared context.
 
 <!-- Template for new directives:
 

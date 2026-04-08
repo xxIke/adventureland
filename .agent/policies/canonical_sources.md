@@ -24,6 +24,10 @@ When sources conflict, higher-numbered sources override lower-numbered ones for 
 | Shared skills | `.agent/skills/` |
 | Policies and boundaries | `.agent/policies/` |
 | Context loading guidance | `.agent/policies/context_loading.md` |
+| Requirements (intent) | `docs/requirements/` |
+| Architecture (design) | `docs/architecture/` |
+| Contracts (interfaces) | `docs/contracts/` |
+| Implementation roadmap | `docs/roadmap/` |
 
 Extend this table as project components are established.
 
