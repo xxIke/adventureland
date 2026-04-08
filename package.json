@@ -1,0 +1,29 @@
+{
+  "name": "adventureland",
+  "version": "1.0.0",
+  "description": "A bot system for [AdventureLand](https://adventure.land), a code MMORPG where players write JavaScript to control their characters. Game docs: [adventure.land/docs](https://adventure.land/docs)",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "build": "esbuild src/boot.js --bundle --outfile=dist/bot.js --format=iife",
+    "watch": "esbuild src/boot.js --bundle --outfile=dist/bot.js --format=iife --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xxIke/adventureland.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/xxIke/adventureland/issues"
+  },
+  "homepage": "https://github.com/xxIke/adventureland#readme",
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
+}

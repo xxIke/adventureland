@@ -31,16 +31,20 @@ Set up project structure, agentic worksurface, engineering standards, and develo
 
 Author per-component contracts before implementation begins, sequenced by roadmap phase.
 
-- **Status:** Pending (blocked by D1 build environment)
+- **Status:** In Progress
 - **Applies to:** Contract authoring in `docs/contracts/`
 - **Rationale:** M1 (documentation-first). Each component needs contracts documented before code is written.
-- **Sequence:** Phase 0 (scheduler, event-bus) -> Phase 1 (world-model, logging) -> Phase 2 (combat, potion-regen, movement) -> Phase 3 (party, objective) -> Phase 4 (merchant)
+- **Sequence:** Phase 0 (scheduler, event-bus) -> Phase 1 (world-model, configuration, logging) -> Phase 2 (combat, potion-regen, movement) -> Phase 3 (party, objective) -> Phase 4 (merchant)
+
+**Completed:**
+- Phase 0: `scheduler.md`, `event-bus.md`
+- Phase 1: `world-model.md`, `configuration.md`, `logging.md`
 
 ### D3: Phase 0 Skeleton First
 
 The skeleton (build pipeline, scheduler, event bus, shared context) is the dependency for all domain systems.
 
-- **Status:** Pending (blocked by D2 for scheduler/event-bus contracts)
+- **Status:** In Progress (contracts authored, implementation next)
 - **Applies to:** Implementation ordering per `docs/roadmap/`
 - **Rationale:** M3 (core before dependent). All domain systems depend on the skeleton's entry point, scheduler, event bus, and shared context.
 

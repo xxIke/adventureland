@@ -30,17 +30,18 @@ Common types referenced across contracts (defined here to avoid duplication):
 
 These will be refined as contracts are authored.
 
-## Planned Contract Files
+## Contract Files
 
-| File | System | Phase |
-|------|--------|-------|
-| `scheduler.md` | Scheduler | Phase 0 |
-| `event-bus.md` | Event Bus | Phase 0 |
-| `world-model.md` | WorldModel | Phase 1 |
-| `logging.md` | Logging | Phase 1 |
-| `combat.md` | Combat | Phase 2 |
-| `potion-regen.md` | Potion/Regen | Phase 2 |
-| `movement.md` | Movement | Phase 2 |
-| `party.md` | Party | Phase 3 |
-| `objective.md` | Objective | Phase 3 |
-| `merchant.md` | Merchant | Phase 4 |
+| File | System | Phase | Status |
+|------|--------|-------|--------|
+| `scheduler.md` | Scheduler | Phase 0 | Authored |
+| `event-bus.md` | Event Bus | Phase 0 | Authored |
+| `world-model.md` | WorldModel | Phase 1 | Authored |
+| `configuration.md` | Configuration | Phase 1 | Authored |
+| `logging.md` | Logging | Phase 1 | Authored |
+| `combat.md` | Combat | Phase 2 | Planned |
+| `potion-regen.md` | Potion/Regen | Phase 2 | Planned |
+| `movement.md` | Movement | Phase 2 | Planned |
+| `party.md` | Party | Phase 3 | Planned |
+| `objective.md` | Objective | Phase 3 | Planned |
+| `merchant.md` | Merchant | Phase 4 | Planned |

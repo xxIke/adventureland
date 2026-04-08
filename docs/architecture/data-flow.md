@@ -34,6 +34,8 @@ Events are secondary coordination — they notify systems that something happene
 | `movement:request` | Combat, Party | Movement | `{ type, target, priority }` | Repositioning or rally requests |
 | `party:need-supply` | Party | Merchant | `{ character, needs }` | Supply request from hunter |
 | `party:status-update` | Party | Logging | `{ members, state }` | Party state changes |
+| `world:hostile-player-detected` | WorldModel | Combat, Logging | `{ player }` | Alert to new hostile player |
+| `world:special-monster-detected` | WorldModel | Objective, Logging | `{ monster }` | Alert to new special monster |
 | `system:error` | Any | Logging | `{ system, operation, error }` | Error reporting |
 
 This catalog will grow as contracts are defined. New events follow the `{system}:{signal}` naming convention.

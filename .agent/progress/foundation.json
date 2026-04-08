@@ -5,7 +5,7 @@
   "objective": "Establish project structure, agentic worksurface, and development environment before writing application code",
   "scope": "Project directory scaffold, agent surface, engineering standards, build environment, project documentation",
   "why_now": "M1 and M3 require foundation before implementation. This is the first workstream.",
-  "current_focus": ["Establish build environment", "Author contracts for Phase 0 systems"],
+  "current_focus": ["Implement Phase 0 skeleton", "Phase 1 contracts authored — ready for implementation"],
   "related_context": [
     "AGENTS.md",
     "CLAUDE.md",
@@ -13,6 +13,36 @@
     "docs/_index.md"
   ],
   "recent_updates": [
+    {
+      "date": "2026-04-08",
+      "summary": "Phase 1 contracts authored: world-model.md, configuration.md, logging.md. Single-pass entity survey, dynamic roster via get_characters(), per-system debug levels, set_message integration, 50-entry log buffer. Signal catalog updated with world:hostile-player-detected and world:special-monster-detected. Contracts index updated.",
+      "artifacts": [
+        "docs/contracts/world-model.md",
+        "docs/contracts/configuration.md",
+        "docs/contracts/logging.md",
+        "docs/contracts/_index.md",
+        "docs/contracts/event-bus.md",
+        "docs/architecture/data-flow.md"
+      ],
+      "next": [
+        "Implement Phase 0 skeleton (scheduler, event bus, shared context, stub systems)",
+        "Implement Phase 1: WorldModel, Configuration, Logging"
+      ]
+    },
+    {
+      "date": "2026-04-07",
+      "summary": "Phase 0 prerequisites complete. esbuild build pipeline set up (npm run build produces dist/bot.js). Scheduler and event bus contracts authored. Boot stub created.",
+      "artifacts": [
+        "package.json",
+        "src/boot.js",
+        "dist/bot.js",
+        "docs/contracts/scheduler.md",
+        "docs/contracts/event-bus.md"
+      ],
+      "next": [
+        "Implement Phase 0 skeleton: scheduler, event bus, shared context, stub systems"
+      ]
+    },
     {
       "date": "2026-04-07",
       "summary": "Documentation structure established. Requirements (R1-R50), architecture (7 confirmed decisions, 8 systems, infrastructure), contracts index, and implementation roadmap (5 phases) authored fresh from user interview. Deprecated temp-new_system/ and architecture-analysis.md removed. Canonical sources updated.",
@@ -22,11 +52,6 @@
         "docs/architecture/",
         "docs/contracts/",
         "docs/roadmap/"
-      ],
-      "next": [
-        "Set up esbuild build pipeline (Phase 0 prerequisite)",
-        "Author contracts for scheduler and event bus (contracts/scheduler.md, contracts/event-bus.md)",
-        "Implement Phase 0 skeleton"
       ]
     },
     {
@@ -90,14 +115,36 @@
     },
     "build_environment": {
       "description": "Establish esbuild build pipeline for bundling src/ into single output file",
-      "status": "failing",
+      "status": "passing",
       "priority": "high",
       "blocked_by": [],
       "correlates": [],
       "last_touched": "2026-04-07",
-      "next_action": "Set up esbuild, create build script, verify output deploys to Adventure Land CODE",
-      "evidence": [],
-      "notes": "esbuild confirmed as build tool. Entry point: src/boot.js, output: dist/bot.js"
+      "next_action": "None — complete. npm run build produces dist/bot.js from src/boot.js",
+      "evidence": ["package.json", "src/boot.js", "dist/bot.js"],
+      "notes": "esbuild 0.28.0. Build: --bundle --outfile=dist/bot.js --format=iife. Watch mode available via npm run watch."
+    },
+    "phase0_contracts": {
+      "description": "Author scheduler and event bus contracts for Phase 0",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "2026-04-07",
+      "next_action": "None — complete. Ready for Phase 0 implementation.",
+      "evidence": ["docs/contracts/scheduler.md", "docs/contracts/event-bus.md"],
+      "notes": "Scheduler: createScheduler(), register/start/stop/pause/resume/getStats. EventBus: createEventBus(), on/emit/clear."
+    },
+    "phase1_contracts": {
+      "description": "Author WorldModel, Configuration, and Logging contracts for Phase 1",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "2026-04-08",
+      "next_action": "None — complete. Ready for Phase 1 implementation.",
+      "evidence": ["docs/contracts/world-model.md", "docs/contracts/configuration.md", "docs/contracts/logging.md"],
+      "notes": "WorldModel: single-pass entity survey, 7 categories, sole writer to ctx.world. Configuration: dynamic roster via get_characters(), localStorage farm target, merchant as controller. Logging: 5 levels, per-system debug control, set_message, 50-entry buffer, localStorage snapshots."
     }
   }
 }
