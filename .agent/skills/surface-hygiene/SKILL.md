@@ -39,7 +39,7 @@ Audit the agentic work surface for drift, staleness, and parity violations. Ensu
 
 4. **Bootstrap reference check.** In `AGENTS.md` and `CLAUDE.md`:
    - Do referenced paths exist?
-   - Is the canonical sources table current?
+   - Is the canonical sources table current? (Must include: game-api.md, context-map.md, game-reference.md, review findings)
    - Is the bootstrap read order current?
 
 5. **Rule and skill references.** For each rule and skill:
@@ -55,6 +55,8 @@ Audit the agentic work surface for drift, staleness, and parity violations. Ensu
    - Files referencing removed or renamed paths
    - Directives that appear completed but not pruned
    - Progress workstreams with no updates in >30 days
+   - Contracts referencing retired systems (check `docs/contracts/_index.md` retired section)
+   - References to deprecated ctx slots (e.g., `ctx.combat`)
 
 8. **Settings review.** In `.claude/settings.json`:
    - Are permission patterns still appropriate?

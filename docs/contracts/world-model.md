@@ -54,11 +54,17 @@ The `tick` function performs a **single pass** over `parent.entities`, categoriz
 
 **Character entities** (`entity.type === "character"`):
 
+Friendly and hostile are **independent categories** — not being friendly does not make a character hostile. A character must be actively attacking a party member AND not be friendly to qualify as hostile.
+
 | Category | Condition |
 |----------|-----------|
-| `partyMembers` | Entity is friendly (same owner, in same party, or owner is a friend) AND in the same party as `character` |
-| `hostilePlayers` | Entity is not friendly AND `entity.target` matches the name of any current `partyMembers` entry |
+| `partyMembers` | Entity is in the same party as `character` (`entity.party` is truthy AND `entity.party === character.party`) |
+| `hostilePlayers` | Entity is NOT friendly AND `entity.target` matches the name of any current `partyMembers` entry. See hostile detection note below. |
 | `charactersOfferingTrade` | Entity has at least one occupied trade slot (`entity.slots` contains a key matching `"trade"` with a non-null value) |
+
+**Friendly detection**: A character is friendly if owned by a friendly player. Friendly players are: the current account (`entity.owner === character.owner`), or a player in the configured friendly players list (`ctx.config.friendlyPlayers`). The game's `character.friends` list is not programmatically accessible in a reliable format, so friendly player IDs must be configured explicitly.
+
+**Hostile detection note**: `entity.target` is set by both `attack()` and `heal()` (see [game-api.md](../game-api.md)). A healer targeting a party member will have `entity.target` set to that member's name. The friendly check runs first as a gate — if an entity is friendly, it is never evaluated for hostility. This provides acceptable grace for performance while preventing healer false-positives from friendly players.
 
 **Monster entities** (`entity.type === "monster"`):
 
@@ -73,7 +79,8 @@ The `tick` function performs a **single pass** over `parent.entities`, categoriz
 **Notes:**
 - A monster can appear in multiple categories (e.g., a hostile special monster appears in both `hostileMonsters` and `specialMonsters`).
 - `partyMembers` always includes `character` (self) as the first entry.
-- Friendly detection uses: same `owner`, in same `party`, or owner in `character.friends`.
+- Friendly detection uses: same `owner`, or owner in `ctx.config.friendlyPlayers` list.
+- A character not classified as friendly is NOT automatically hostile — hostility requires `entity.target` matching a party member AND not being friendly.
 
 ### Special Monster List
 
@@ -84,6 +91,27 @@ The list of special monster identifiers is maintained in configuration. Initial 
 ```
 
 This list is matched via substring against `entity.mtype` and `entity.name`.
+
+## Context Dependencies
+
+```yaml
+writes:
+  ctx.world:
+    specialMonsters: Entity[]
+    targetMonsters: Entity[]
+    easyMonsters: Entity[]
+    hostileMonsters: Entity[]
+    hostilePlayers: Entity[]
+    partyMembers: Entity[]
+    charactersOfferingTrade: Entity[]
+    lastUpdated: number
+
+reads:
+  ctx.config:
+    - specialMonsters     # list of special monster identifiers
+    - farmTarget          # current farm target monster type
+    - friendlyPlayers     # list of friendly player owner IDs
+```
 
 ## Behavior Contracts
 

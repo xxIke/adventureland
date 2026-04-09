@@ -25,20 +25,24 @@ Confirmed design for the AdventureLand bot system. All decisions here were estab
 Entry Point (boot.js)
   |
   +-- Build shared context (ctx)
-  |     ctx.world      WorldModel instance (sole writer: world system)
+  |     ctx.world      WorldModel output (sole writer: world system)
+  |     ctx.objective  Objective output (sole writer: objective system)
+  |     ctx.targeting  Targeting output (sole writer: targeting system)
   |     ctx.bus        EventBus (lightweight pub/sub for signals)
   |     ctx.config     Configuration (roster, thresholds, toggles)
   |     ctx.scheduler  Scheduler instance
   |
   +-- Create systems (each receives ctx)
-  |     WorldModel     polls game state, maintains entity lists
-  |     Objective      decides what the bot should be doing
-  |     Combat         target selection, attacks, skills, survival
-  |     Movement       travel + combat repositioning
-  |     Party          coordination via CM + shared state
-  |     Merchant       inventory, restock, upgrades, economy
-  |     Potion/Regen   HP/MP consumable management
-  |     Logging        structured logging, status reporting
+  |     WorldModel       polls game state, maintains entity lists
+  |     Objective        decides what to do (hunter or merchant strategy)
+  |     Targeting        monitors world, maintains priority target
+  |     Attack           executes attack()/heal() on cooldown cycle
+  |     Combat Skills    class-specific combat skill use
+  |     Merchant Skills  merchant buff/bless skill loop
+  |     Movement         travel + combat repositioning
+  |     Party            coordination via CM + shared state
+  |     Potion/Regen     HP/MP recovery (independent of combat)
+  |     Logging          structured logging, status reporting
   |
   +-- Register systems with scheduler
   |     (each at its natural frequency + priority)
@@ -62,5 +66,6 @@ Server disconnect detected
 |------|----------|
 | [decisions.md](decisions.md) | The 7 confirmed architectural decisions with rationale |
 | [systems.md](systems.md) | Per-system purpose, responsibilities, reads/writes, scheduling |
-| [infrastructure.md](infrastructure.md) | Scheduler, event bus, shared context, config, localStorage, build |
+| [context-map.md](context-map.md) | Structured `ctx` slot definitions and per-system read/write dependencies |
+| [infrastructure.md](infrastructure.md) | Scheduler, event bus, shared context, config, localStorage, build, utilities |
 | [data-flow.md](data-flow.md) | Data flow, event catalog, cross-character communication, persistence |

@@ -1,3 +1,23 @@
+/**
+ * World model — surveys `parent.entities` each tick to classify visible entities
+ * into categorized lists on `ctx.world` (party members, hostile players/monsters,
+ * farm targets, special monsters, traders).
+ *
+ * Runs as an early-phase context writer so that downstream systems (targeting,
+ * movement, party) read a consistent snapshot. Emits bus events when new threats
+ * or special monsters appear.
+ */
+
+/**
+ * Creates the world model system that populates `ctx.world` each tick.
+ *
+ * Entity classification uses a two-pass approach: the first pass collects entities
+ * with a `target` field, and the second pass resolves which of those are actually
+ * hostile (targeting a party member) once the full party set is known.
+ *
+ * @param {object} ctx - Shared context with `config`, `bus`, and `world` properties
+ * @returns {{ tick: Function }}
+ */
 export function createWorldModel(ctx) {
   let previousHostilePlayers = [];
   let previousSpecialMonsters = [];

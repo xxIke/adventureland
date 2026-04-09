@@ -79,14 +79,13 @@ Initial signals defined for the bot system. This catalog grows as contracts are 
 
 | Event | Payload | Emitter | Purpose |
 |-------|---------|---------|---------|
-| `objective:changed` | `{ from, to, target }` | Objective | Strategy swaps, movement mode changes |
-| `combat:target-changed` | `{ previous, current, reason }` | Combat | Decision logging |
-| `movement:request` | `{ type, target, priority }` | Combat, Party | Repositioning or rally requests |
-| `party:need-supply` | `{ character, needs }` | Party | Supply request from hunter |
-| `party:status-update` | `{ members, state }` | Party | Party state changes |
-| `world:hostile-player-detected` | `{ player }` | WorldModel | Alert systems to new hostile player |
-| `world:special-monster-detected` | `{ monster }` | WorldModel | Alert systems to new special monster |
+| `objective:changed` | `{ from, to, target }` | Objective | Decision logging |
+| `targeting:changed` | `{ previous, current, type, reason }` | Targeting | Decision logging |
+| `world:hostile-player-detected` | `{ player }` | WorldModel | Alert logging |
+| `world:special-monster-detected` | `{ monster }` | WorldModel | Alert logging |
 | `system:error` | `{ system, operation, error }` | Any (via scheduler) | Error reporting |
+
+**Design principle**: Events are for **logging and diagnostics only**. Systems make decisions by reading shared context (`ctx.world`, `ctx.objective`, `ctx.targeting`), not by reacting to events. See [data-flow.md](../architecture/data-flow.md) for the full signal catalog rationale.
 
 ## Requirements Traceability
 

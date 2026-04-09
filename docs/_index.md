@@ -8,8 +8,10 @@ Browser-native bot system for [Adventure Land](https://adventure.land), a code M
 |-------|------|-----------------|
 | **Requirements** | `requirements/` | Architecture-independent intent — what the bot must do and why. Survives re-architecture. |
 | **Architecture** | `architecture/` | Confirmed design decisions — system boundaries, composition model, infrastructure, data flow. |
+| **Game API** | `game-api.md` | Game function semantics, cooldown groups, entity properties. Shared reference for all contracts. |
 | **Contracts** | `contracts/` | Implementable interfaces — method signatures, event payloads, behavior invariants. |
 | **Roadmap** | `roadmap/` | Implementation phases — scope, dependencies, acceptance criteria per phase. |
+| **Review** | `review/` | Audit findings and remediation tracking. |
 
 ## Reading Order
 

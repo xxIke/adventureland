@@ -1,42 +1,34 @@
 # JavaScript Standards — AdventureLand Browser-Native
 
-Standards for JavaScript code running in the Adventure.Land in-game code editor. Extends `core.md`.
+Standards for JavaScript code in the AdventureLand bot project. Extends `core.md`.
 
 ## Runtime Environment
 
 Adventure.Land bots run browser-native in the game client. Key constraints:
 
 - **No Node.js APIs** — no `require()`, `fs`, `path`, `process`, etc.
-- **No ES module imports** — the code editor uses `load_code()` slots, not modules
+- **ES module `import`/`export` in source** — esbuild bundles into a single IIFE for the game client
 - **Browser globals available** — `setTimeout`, `setInterval`, `localStorage`, `JSON`, `Math`, `Date`, etc.
 - **Game globals available** — `character`, `parent`, `G` (game data), and game API functions
 
 ## Game API Conventions
 
-The game exposes functions and objects on the global scope:
-
-- `character` — the current character's state (hp, mp, position, inventory, etc.)
-- `parent` — access to game client internals and API functions
-- `G` — static game data (items, monsters, maps, NPCs, skills, conditions)
-- `set_message(text)` — display status on character
-- `game_log(text)` — write to game log
-- `send_cm(name, data)` — send code message to another character
-- `on_cm` — handler for incoming code messages
-- `smart_move(destination)` — pathfinding movement
-- `attack(target)` — basic attack
-- `use_skill(name, target)` — use a skill
-- `loot()` — loot nearby chests
-- `buy(name, quantity)` — buy from NPC
-- `sell(slot, quantity)` — sell item
-
-This list is not exhaustive. Refer to adventure.land/docs for the full API.
+See game documentation at `https://adventure.land/docs/` or local notes at `docs/game-api.md` for detailed API semantics, cooldown groups, entity properties, and game data structures.
 
 ## Code Organization
 
-- Code is loaded via numbered `load_code()` slots in the game editor
-- Build tooling `SHOULD` bundle source into a single output targeting these slots
-- Until build tooling is established, keep code compatible with direct paste into the editor
-- Use IIFEs or similar patterns to avoid polluting the global namespace beyond intentional exports
+- Source files use ES module `import`/`export` syntax
+- esbuild bundles `src/boot.js` into `dist/bot.js` as a single IIFE (`npm run build`)
+- The bundled output is pasted into a single CODE slot in the game editor
+- No runtime module system exists in the game client — bundling is mandatory
+- Use factory functions and plain objects — no class hierarchies
+
+## Code Documentation
+
+- `MUST` include JSDoc on all exported functions, factory functions, and strategy interfaces (description, `@param`, `@returns`)
+- `MUST` include a file-level doc comment describing the module's purpose and system role
+- `SHOULD` include brief doc comments on internal helpers when the purpose isn't self-evident from the name and signature
+- `MUST NOT` add documentation that merely restates the code — document intent, constraints, and non-obvious behavior
 
 ## Style
 
@@ -51,7 +43,7 @@ This list is not exhaustive. Refer to adventure.land/docs for the full API.
 - `MUST` handle game disconnection and reconnection gracefully
 - `MUST` handle character death and respawn without crashing
 - `SHOULD` use `try/catch` around game API calls that may throw
-- `MUST NOT` use empty catch blocks — at minimum log the error via `game_log()`
+- `MUST NOT` use empty catch blocks — at minimum log the error with context
 
 ## State Management
 

@@ -54,6 +54,7 @@ ctx.config = {
     autoUpgrade: false,
   },
   specialMonsters: ["phoenix", "mvampire"],
+  friendlyPlayers: [],      // owner IDs of friendly players (alt accounts, friends)
   farmTarget: null,         // mtype string or null, from localStorage
 }
 ```

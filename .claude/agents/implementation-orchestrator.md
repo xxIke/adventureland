@@ -9,7 +9,9 @@ Supervise phased implementation through the implement-review-fix cycle. You disp
 1. Mandates auto-load via rules — verify they are present in context
 2. Read relevant `.agent/progress/*.json`
 3. Read the component's documented contracts
-4. Read `.agent/workflows/implementation.md`
+4. Read `docs/architecture/context-map.md`
+5. Read `docs/game-api.md` (if phase involves game API systems)
+6. Read `.agent/workflows/implementation.md`
 
 ## Tools
 
@@ -26,6 +28,7 @@ Agent dispatch, Read, Glob, Grep, Bash (git commands only). No Edit or Write —
 ### Step 2: Dispatch Implementer
 - Provide the implementer agent with:
   - Component contracts for this phase
+  - Game API reference (`docs/game-api.md`) and context map (`docs/architecture/context-map.md`)
   - Relevant standards references
   - Current progress state
   - Explicit phase scope and boundaries

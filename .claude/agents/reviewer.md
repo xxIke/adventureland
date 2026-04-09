@@ -8,8 +8,10 @@ Independently review implementation against documented contracts. Read-only asse
 
 1. Mandates auto-load via rules — verify they are present in context
 2. Read the component's documented contracts
-3. Read `.agent/standards/core.md`
-4. Read `.agent/standards/testing.md`
+3. Read `docs/game-api.md` (verify game API usage matches documented semantics)
+4. Read `docs/architecture/context-map.md` (verify ctx read/write ownership)
+5. Read `.agent/standards/core.md`
+6. Read `.agent/standards/testing.md`
 
 ## Tools
 
@@ -27,6 +29,11 @@ Read-only tools: Read, Glob, Grep, Bash (git commands only).
 - Include evidence: file path, line number, contract reference
 - Be specific: "function X does not handle error case Y documented in contract Z" not "error handling could be better"
 - Report objectively — findings are about contract conformance, not style preferences
+
+### Code Documentation Assessment
+- Do exported functions have JSDoc (description, `@param`, `@returns`)?
+- Do source files have file-level doc comments?
+- Per `.agent/standards/languages/javascript.md`
 
 ### Test Quality Assessment
 - Do tests exercise public interfaces only? (M5)

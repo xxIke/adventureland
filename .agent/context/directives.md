@@ -6,56 +6,54 @@ Prune directives when they become irrelevant. Keep this file focused on current-
 
 ## Active Directives
 
-### D1: Establish Project Foundation
+### D4: Implement Against Redesigned Contracts
 
-Set up project structure, agentic worksurface, engineering standards, and development environment before writing application code.
+Phase 2 systems must be implemented against post-audit contracts. The original combat system was decomposed into three independent systems (targeting, attack, combat-skills) with revised contracts for potion-regen and movement.
 
-- **Status:** In Progress
-- **Applies to:** All initial setup work
-- **Rationale:** M1 (documentation-first) and M3 (core before dependent) require the foundation to exist before building on it
-- **Context:** AdventureLand (adventure.land) is a code MMORPG where players write JavaScript to control characters. Game docs: adventure.land/docs. Bot runs browser-native in the game's code editor.
+- **Status:** Active
+- **Applies to**: Phase 2 implementation
+- **Rationale:** Audit (`docs/review/audit-v0.1.0.md`) found the monolithic combat system conflated independent concerns with different frequencies and applicability. Redesigned contracts restore the separation that v2 proved works.
 
-**Completed:**
-- Agent surface scaffolded (rules, skills, standards, policies)
-- Project structure established: `docs/`, `src/`, `scripts/`
-- Requirements captured (R1-R50) in `docs/requirements/`
-- Architecture documented (7 decisions, 8 systems) in `docs/architecture/`
-- Contracts index established in `docs/contracts/`
-- Implementation roadmap (5 phases) in `docs/roadmap/`
+**Key references:**
+- `docs/contracts/_index.md` — contract status and retired contracts
+- `docs/architecture/context-map.md` — ctx read/write ownership per system
+- `docs/game-api.md` — game API semantics, cooldown groups, G data structure
+- `docs/review/audit-v0.1.0.md` — audit findings driving the redesign
 
-**Remaining:**
-- Set up esbuild build pipeline
-- Set up local development/testing environment
+**Implementation scope:**
+- `src/targeting.js` — new, per `docs/contracts/targeting.md`
+- `src/attack.js` — new, per `docs/contracts/attack.md`
+- `src/combat-skills.js` — new, per `docs/contracts/combat-skills.md`
+- `src/potion-regen.js` — rewrite, per revised `docs/contracts/potion-regen.md`
+- `src/movement.js` — rewrite, per revised `docs/contracts/movement.md`
+- `src/boot.js` — update wiring (remove combat.js, add new systems)
+- `src/combat.js` — remove (replaced by targeting + attack + combat-skills)
 
-### D2: Author Component Contracts
+### D5: Game API Verification
 
-Author per-component contracts before implementation begins, sequenced by roadmap phase.
+All implementation and contract work involving game API calls must verify behavior against documented sources.
 
-- **Status:** In Progress
-- **Applies to:** Contract authoring in `docs/contracts/`
-- **Rationale:** M1 (documentation-first). Each component needs contracts documented before code is written.
-- **Sequence:** Phase 0 (scheduler, event-bus) -> Phase 1 (world-model, configuration, logging) -> Phase 2 (combat, potion-regen, movement) -> Phase 3 (party, objective) -> Phase 4 (merchant)
+- **Status:** Active
+- **Applies to:** All game API interaction work
+- **Rationale:** Audit A1 found incorrect cooldown model assumptions propagated across contracts. Verification prevents recurrence.
 
-**Completed:**
-- Phase 0: `scheduler.md`, `event-bus.md`
-- Phase 1: `world-model.md`, `configuration.md`, `logging.md`
+**Workflow:**
+1. Check `docs/game-api.md` first for documented behavior
+2. If ambiguous or undocumented, consult external server reference (see `.agent/context/game-reference.md`)
+3. When new knowledge is extracted, add it to `docs/game-api.md`
 
-### D3: Phase 0 Skeleton First
+### D6: Phase 3 Contracts Ready
 
-The skeleton (build pipeline, scheduler, event bus, shared context) is the dependency for all domain systems.
+Phase 3 contracts are authored and ready for implementation after Phase 2 is complete.
 
-- **Status:** In Progress (contracts authored, implementation next)
-- **Applies to:** Implementation ordering per `docs/roadmap/`
-- **Rationale:** M3 (core before dependent). All domain systems depend on the skeleton's entry point, scheduler, event bus, and shared context.
+- **Status:** Queued (blocked on Phase 2)
+- **Applies to:** Objective and Party implementation
+- **Rationale:** Phase 3 systems coordinate Phase 2 systems — they require working targeting, attack, and movement.
 
-<!-- Template for new directives:
+**Contracts:** `docs/contracts/objective.md`, `docs/contracts/party.md`
 
-### D_: Directive Title
+## Retired Directives
 
-Brief description of the directive.
-
-- **Status:** Active | Completed | Superseded
-- **Applies to:** What scope this directive covers
-- **Rationale:** Why this directive exists, linking to relevant mandates
-
--->
+- **D1: Establish Project Foundation** — completed. Agent surface, project structure, requirements, architecture, build environment established.
+- **D2: Author Component Contracts** — completed through Phase 3. All contracts authored or revised per audit.
+- **D3: Phase 0 Skeleton First** — completed. Phase 0 and Phase 1 implemented.

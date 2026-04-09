@@ -22,26 +22,37 @@ Each contract file follows this structure:
 
 Common types referenced across contracts (defined here to avoid duplication):
 
-- **Entity** — a game entity reference from `parent.entities` with at minimum `{ id, type, x, y }`
+- **Entity** — a game entity reference from `parent.entities`. Properties per [game-api.md](../game-api.md).
 - **Position** — `{ x, y, map? }` coordinates, optionally map-qualified
-- **CharacterRef** — `{ name, class, role }` from config roster
-- **Objective** — `{ type, target, reason }` describing current bot goal
+- **CharacterRef** — `{ name, ctype, role }` from config roster
+- **ObjectiveState** — `{ type, target, location, step, stepComplete, role, lastUpdated }` — see [objective.md](objective.md) for full shape
 - **SupplyRequest** — `{ character, type, item, quantity }` for merchant coordination
 
-These will be refined as contracts are authored.
+## Shared API Reference
+
+All contracts reference [game-api.md](../game-api.md) for game function semantics, cooldown groups, and entity properties. Contracts must not contradict the game API reference.
 
 ## Contract Files
 
 | File | System | Phase | Status |
 |------|--------|-------|--------|
 | `scheduler.md` | Scheduler | Phase 0 | Authored |
-| `event-bus.md` | Event Bus | Phase 0 | Authored |
+| `event-bus.md` | Event Bus | Phase 0 | Revised |
 | `world-model.md` | WorldModel | Phase 1 | Authored |
 | `configuration.md` | Configuration | Phase 1 | Authored |
 | `logging.md` | Logging | Phase 1 | Authored |
-| `combat.md` | Combat | Phase 2 | Planned |
-| `potion-regen.md` | Potion/Regen | Phase 2 | Planned |
-| `movement.md` | Movement | Phase 2 | Planned |
-| `party.md` | Party | Phase 3 | Planned |
-| `objective.md` | Objective | Phase 3 | Planned |
-| `merchant.md` | Merchant | Phase 4 | Planned |
+| `targeting.md` | Targeting | Phase 2 | Authored |
+| `attack.md` | Attack | Phase 2 | Authored |
+| `combat-skills.md` | Combat Skills | Phase 2 | Authored |
+| `potion-regen.md` | Potion/Regen | Phase 2 | Revised |
+| `movement.md` | Movement | Phase 2 | Revised |
+| `objective.md` | Objective | Phase 3 | Authored |
+| `party.md` | Party | Phase 3 | Authored |
+| `merchant-skills.md` | Merchant Skills | Phase 4 | Planned |
+
+### Retired Contracts
+
+| File | Reason |
+|------|--------|
+| `combat.md` | Decomposed into targeting, attack, and combat-skills per audit A2 |
+| `merchant.md` | Merchant decision logic is the merchant strategy for Objective, not a separate system |

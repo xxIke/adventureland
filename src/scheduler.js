@@ -1,5 +1,21 @@
+/**
+ * Scheduler — tick-based system loop that drives all bot subsystems.
+ *
+ * Each registered system gets its own independent setTimeout chain. Systems can
+ * return `{ delay: N }` from their tick function to adaptively adjust their next
+ * interval (e.g. faster polling during combat, slower when idle). Tick errors are
+ * caught and emitted on the bus as `system:error` events without stopping the loop.
+ */
+
+/** Floor for tick intervals — prevents runaway tight loops. */
 const MIN_DELAY = 50;
 
+/**
+ * Creates a scheduler that manages independent tick loops for named subsystems.
+ *
+ * @param {object} bus - Event bus for emitting `system:error` events on tick failures
+ * @returns {{ register: Function, start: Function, stop: Function, pause: Function, resume: Function, getStats: Function }}
+ */
 export function createScheduler(bus) {
   const systems = new Map();
   let running = false;

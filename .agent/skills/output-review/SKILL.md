@@ -67,6 +67,7 @@ Map each identified failure to a specific agentic surface deficiency:
 | Context/directives | Missing context, stale directive, wrong loading tier |
 | Agent instructions | Inadequate constraints, wrong tool access, missing mandatory reads |
 | Workflows | Missing phase, unclear handoff, insufficient verification |
+| Game API reference | Incorrect or missing game API documentation causing wrong assumptions |
 | Checklists | Missing checklist item, item too vague to verify |
 
 If no surface deficiency explains the failure, it may be a model capability limitation — document this separately.

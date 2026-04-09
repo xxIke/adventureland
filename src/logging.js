@@ -1,3 +1,14 @@
+/**
+ * Logging — structured, level-filtered logging with console output, in-game display,
+ * and localStorage persistence.
+ *
+ * Supports per-system log level overrides. Fatal/error go to `console.error`;
+ * info and above also display via `game_log()` in the game client. The tick
+ * function periodically snapshots the buffer to localStorage for cross-tab debugging.
+ * Auto-subscribes to `system:error` bus events to capture scheduler tick failures.
+ */
+
+/** Numeric severity levels — lower number = higher severity. */
 const LEVELS = {
   fatal: 0,
   error: 1,
@@ -6,6 +17,12 @@ const LEVELS = {
   debug: 4,
 };
 
+/**
+ * Creates a logger with leveled output, ring buffer, and localStorage snapshots.
+ *
+ * @param {object} bus - Event bus; the logger subscribes to `system:error` for automatic error capture
+ * @returns {{ log: Function, fatal: Function, error: Function, warn: Function, info: Function, debug: Function, setLevel: Function, setMessage: Function, getBuffer: Function, tick: Function }}
+ */
 export function createLogger(bus) {
   const buffer = [];
   const maxBuffer = 50;

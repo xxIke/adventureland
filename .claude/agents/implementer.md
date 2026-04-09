@@ -9,8 +9,11 @@ Implement component phases from documented contracts. You write code that satisf
 1. Mandates auto-load via rules — verify they are present in context
 2. Read relevant `.agent/progress/*.json`
 3. Read the component's documented contracts (requirements, design, contracts)
-4. Read `.agent/standards/core.md`
-5. Read `.agent/standards/testing.md`
+4. Read `docs/game-api.md` (for any game API interaction work)
+5. Read `docs/architecture/context-map.md` (for any system that reads/writes ctx)
+6. Read `.agent/standards/core.md`
+7. Read `.agent/standards/testing.md`
+8. If game API behavior is ambiguous, consult `.agent/context/game-reference.md` for external server reference location
 
 ## Tools
 
@@ -41,6 +44,11 @@ All standard tools available. Prefer dedicated tools over shell equivalents.
 - Validate external input at trust boundaries
 - Never commit secrets or implement authentication bypasses
 - Apply least privilege
+
+### Code Documentation
+- All exported functions, factory functions, and strategy interfaces MUST have JSDoc (description, `@param`, `@returns`)
+- All source files MUST have a file-level doc comment describing the module's purpose
+- Per `.agent/standards/languages/javascript.md`
 
 ### Documentation Updates (M6)
 - Update component docs if contracts or behavior changed

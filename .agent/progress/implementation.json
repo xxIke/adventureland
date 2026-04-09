@@ -1,0 +1,168 @@
+{
+  "workstream": "implementation",
+  "title": "System Implementation (Post-Audit Redesign)",
+  "status": "active",
+  "objective": "Implement all systems from Phase 2 through Phase 4 against redesigned contracts",
+  "scope": "Phase 2 (targeting, attack, combat-skills, potion-regen, movement), Phase 3 (objective, party), Phase 4 (merchant strategy, merchant-skills)",
+  "why_now": "Foundation complete, audit done, contracts redesigned and corrected. Implementation is the next link in the M1 chain.",
+  "current_focus": ["Phase 4: merchant strategy, merchant-skills"],
+  "related_context": [
+    "docs/contracts/_index.md",
+    "docs/architecture/context-map.md",
+    "docs/game-api.md",
+    "docs/review/audit-v0.1.0.md"
+  ],
+  "recent_updates": [
+    {
+      "date": "2026-04-08",
+      "summary": "Phase 2 and Phase 3 implemented. Targeting system supports melee/ranged/heal strategy composition. Movement rewritten with reactive kiting for non-tanks. Potion-regen uses character.targets + ctx.world hostiles. Objective system with hunter strategy. Party system with tank identification. Boot.js rewired. combat.js deleted.",
+      "artifacts": [
+        "src/targeting.js",
+        "src/attack.js",
+        "src/combat-skills.js",
+        "src/potion-regen.js",
+        "src/movement.js",
+        "src/objective.js",
+        "src/party.js",
+        "src/boot.js"
+      ],
+      "next": ["Review implementation against contracts", "Phase 4 merchant strategy"]
+    },
+    {
+      "date": "2026-04-08",
+      "summary": "Documentation corrections: targeting strategies restructured to melee/ranged/heal composition, movement kiting redefined as reactive non-tank behavior, tank identification added to party contract, priest-specific language removed in favor of capability-based checks.",
+      "artifacts": [
+        "docs/contracts/targeting.md",
+        "docs/contracts/movement.md",
+        "docs/contracts/party.md",
+        "docs/architecture/context-map.md",
+        "docs/architecture/systems.md",
+        "docs/architecture/data-flow.md"
+      ],
+      "next": ["Verify documentation alignment post-implementation"]
+    }
+  ],
+  "items": {
+    "phase0_implementation": {
+      "description": "Scheduler, event bus, shared context — Phase 0 skeleton",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "2026-04-08",
+      "next_action": "None — implemented",
+      "evidence": ["src/scheduler.js", "src/event-bus.js"],
+      "notes": "Implemented pre-audit. Contracts unchanged — no rework needed."
+    },
+    "phase1_implementation": {
+      "description": "WorldModel, Configuration, Logging — Phase 1",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "2026-04-08",
+      "next_action": "None — implemented",
+      "evidence": ["src/world-model.js", "src/configuration.js", "src/logging.js"],
+      "notes": "World-model contract revised: friendly/hostile now independent categories, friendlyPlayers config added."
+    },
+    "audit_and_redesign": {
+      "description": "Audit existing implementation, redesign system decomposition, revise contracts",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "2026-04-08",
+      "next_action": "None — complete",
+      "evidence": ["docs/review/audit-v0.1.0.md", "docs/review/doc-review-v0.1.0.md"],
+      "notes": "Combat decomposed into targeting + attack + combat-skills. Merchant absorbed into objective. Potion-regen and movement contracts revised."
+    },
+    "phase2_targeting": {
+      "description": "Targeting system — melee/ranged/heal strategy composition, priority selection, stickiness, party dedup",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": ["phase2_attack", "phase2_movement"],
+      "last_touched": "2026-04-08",
+      "next_action": "Review against contract",
+      "evidence": ["src/targeting.js"],
+      "notes": "Implements createTargeting(ctx, strategies[]), createMeleeTargetingStrategy(), createRangedTargetingStrategy(), createHealTargetingStrategy(). Heal gated on character.heal > 0."
+    },
+    "phase2_attack": {
+      "description": "Attack system — cooldown-gated attack()/heal() executor",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": ["phase2_targeting"],
+      "last_touched": "2026-04-08",
+      "next_action": "Review against contract",
+      "evidence": ["src/attack.js"],
+      "notes": "Thin executor reading ctx.targeting. Heal priority over attack. Adaptive delay."
+    },
+    "phase2_combat_skills": {
+      "description": "Combat skills — class-specific skill use on independent cooldowns",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": ["phase2_targeting"],
+      "last_touched": "2026-04-08",
+      "next_action": "Review against contract",
+      "evidence": ["src/combat-skills.js"],
+      "notes": "No-op strategy for Phase 2. Strategy interface documented for future class strategies."
+    },
+    "phase2_potion_regen": {
+      "description": "Potion/Regen — uses character.targets + world hostiles, adaptive scheduling",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "2026-04-08",
+      "next_action": "Review against contract",
+      "evidence": ["src/potion-regen.js"],
+      "notes": "Revised: combat context from character.targets + ctx.world hostiles. All returns provide { delay }."
+    },
+    "phase2_movement": {
+      "description": "Movement — reads ctx.objective + ctx.targeting, reactive kiting for non-tanks",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": ["phase2_targeting"],
+      "last_touched": "2026-04-08",
+      "next_action": "Review against contract",
+      "evidence": ["src/movement.js"],
+      "notes": "Rewritten. Mode detection from ctx each tick. Melee approach+hold, ranged maintain range, reactive kite when non-tank targeted."
+    },
+    "phase2_boot_wiring": {
+      "description": "Boot.js — all systems wired, strategy selection at boot, conditional registration",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": [],
+      "last_touched": "2026-04-08",
+      "next_action": "Review against context-map execution order",
+      "evidence": ["src/boot.js"],
+      "notes": "combat.js deleted. Strategy selection: character.heal > 0 adds heal, character.range > 30 selects ranged vs melee. Attack/combat-skills conditional on !isMerchant."
+    },
+    "phase3_objective": {
+      "description": "Objective system — context publisher with hunter strategy",
+      "status": "passing",
+      "priority": "medium",
+      "blocked_by": [],
+      "correlates": ["phase3_party"],
+      "last_touched": "2026-04-08",
+      "next_action": "Review against contract",
+      "evidence": ["src/objective.js"],
+      "notes": "Hunter strategy: idle/farm/travel/recover. Farm location resolved from G.maps. Merchant strategy deferred to Phase 4."
+    },
+    "phase3_party": {
+      "description": "Party system — assembly, status publishing, CM protocol, tank identification",
+      "status": "passing",
+      "priority": "medium",
+      "blocked_by": [],
+      "correlates": ["phase3_objective"],
+      "last_touched": "2026-04-08",
+      "next_action": "Review against contract",
+      "evidence": ["src/party.js"],
+      "notes": "Tank score = max_hp + armor + resistance. Recalculated on party membership change. ctx.party.tank published."
+    }
+  }
+}

@@ -57,6 +57,7 @@ Systematic review of component documentation against the M1 documentation chain 
    - Do contracts match requirements?
    - Does design address all requirements?
    - Are naming conventions consistent?
+   - Do contract Context Dependencies match `docs/architecture/context-map.md`?
    - Do cross-references resolve correctly?
 
 7. **Implementability assessment.** Could a competent engineer implement solely from these docs?
@@ -67,6 +68,7 @@ Systematic review of component documentation against the M1 documentation chain 
 8. **Staleness check.** Is the documentation current?
    - Do referenced files/paths exist?
    - Do referenced APIs/interfaces match implementation (if any)?
+   - Do contracts reference retired systems or deprecated ctx slots? (Check `docs/contracts/_index.md` retired contracts section)
 
 9. **Produce findings.** Classify each finding:
    - **Blocker:** Must fix before implementation can proceed

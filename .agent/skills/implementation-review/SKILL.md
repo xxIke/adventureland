@@ -22,7 +22,7 @@ Independent review of implementation against its documented contracts. Focuses o
 
 ## Steps
 
-1. **Load contracts.** Read the component's documented contracts (requirements, design, API contracts, behavior contracts).
+1. **Load contracts.** Read the component's documented contracts (requirements, design, API contracts, behavior contracts). Also read `docs/game-api.md` and `docs/architecture/context-map.md`.
 
 2. **Inventory implementation.** Map what exists in the implementation against what contracts require.
 
@@ -36,6 +36,7 @@ Independent review of implementation against its documented contracts. Focuses o
    - Contracts without implementation (missing features)
    - Implementation without contracts (undocumented behavior — potential drift)
    - Partial implementations (stubs, TODOs, NotImplementedError)
+   - ctx read/write violations (compare against `docs/architecture/context-map.md` ownership)
 
 5. **Design quality.** Assess against `standards/core.md`:
    - Single responsibility per module/function?
@@ -56,7 +57,11 @@ Independent review of implementation against its documented contracts. Focuses o
    - Least privilege applied?
    - OWASP Top 10 relevant mitigations in place?
 
-8. **Documentation currency (M6).** Verify:
+8. **Code documentation quality.** Verify per `.agent/standards/languages/javascript.md`:
+   - Exported functions have JSDoc (description, `@param`, `@returns`)?
+   - Source files have file-level doc comments?
+
+9. **Documentation currency (M6).** Verify:
    - Component docs match current implementation
    - README/setup instructions are accurate
    - API documentation reflects actual behavior

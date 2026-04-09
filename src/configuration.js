@@ -1,3 +1,17 @@
+/**
+ * Configuration — centralized bot settings combining game API data with localStorage overrides.
+ *
+ * Populates the character roster from `get_characters()`, reads user-configurable
+ * values (active roster, farm target) from localStorage with `al_bot:config:` prefix,
+ * and exposes thresholds and toggles consumed by other systems.
+ */
+
+/**
+ * Creates the configuration object, loading roster from the game API and
+ * persisted overrides from localStorage.
+ *
+ * @returns {object} Config object with `roster`, `thresholds`, `toggles`, `farmTarget`, and `reload()`
+ */
 export function createConfig() {
   const config = {
     roster: {

@@ -45,6 +45,7 @@ Structured specification and planning workflow that produces the documentation c
    - API contracts (input/output specifications, error responses)
    - Behavior contracts (invariants, preconditions, postconditions)
    - Integration contracts (how components communicate)
+   - Context Dependencies section (yaml block defining ctx writes and reads, per pattern in existing contracts). Reference `docs/architecture/context-map.md` as canonical ctx ownership.
    - Each contract is specific enough for contract-based testing (M5)
 
 5. **Implementation plan.** Break implementation into phases:

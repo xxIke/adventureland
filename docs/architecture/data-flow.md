@@ -11,15 +11,28 @@ Game API (character, parent.entities, G)
 WorldModel (polls game state, writes ctx.world)
     |
     v (read-only)
-    +-- Objective     reads world -> decides current goal
-    +-- Combat        reads world + objective -> selects targets, fights
-    +-- Movement      reads world + objective -> travels, repositions
-    +-- Merchant      reads world -> manages inventory, supply
-    +-- Potion/Regen  reads character HP/MP -> uses consumables
-    +-- Logging       reads world + system states -> reports
+    +-- Objective      reads world + config + localStorage -> writes ctx.objective
+    |     |
+    |     v (read-only)
+    |     +-- Targeting      reads world + objective -> writes ctx.targeting
+    |     |     |
+    |     |     v (read-only)
+    |     |     +-- Attack         reads targeting -> executes attack()/heal()
+    |     |     +-- Combat Skills  reads targeting -> uses class combat skills
+    |     |
+    |     +-- Movement       reads objective + targeting + party.tank -> selects mode, executes
+    |
+    +-- Party          reads world + config -> writes ctx.party (tank), party plumbing (invites, status, CM)
+    +-- Merchant Skills reads world -> buff/bless nearby characters
+    +-- Potion/Regen   reads character state + world hostiles -> recovery
+    +-- Logging        reads world + all ctx -> reports
 ```
 
-**Key rule**: Data flows downward from WorldModel. Consumer systems read `ctx.world` but never write to it. This makes data flow traceable — if a value in `ctx.world` is wrong, the bug is in WorldModel.
+**Key rules**:
+- Data flows downward: WorldModel -> Objective -> Targeting -> Attack/Combat Skills. Each layer writes its own `ctx.*` slot. Party writes `ctx.party` (tank identification).
+- Movement reads `ctx.objective` (mode), `ctx.targeting` (repositioning target), and `ctx.party.tank` (kite decision). It does not need events to know what to do.
+- Potion/Regen reads game globals (`character.targets`, `character.hp/mp`) and WorldModel hostile presence directly — independent of all other systems. Works for all character types.
+- If `ctx.world` is wrong, the bug is in WorldModel. If `ctx.objective` is wrong, the bug is in Objective. If `ctx.targeting` is wrong, the bug is in Targeting.
 
 ## Event Bus Signals
 
@@ -29,14 +42,15 @@ Events are secondary coordination — they notify systems that something happene
 
 | Event | Emitter | Consumers | Payload | Purpose |
 |-------|---------|-----------|---------|---------|
-| `objective:changed` | Objective | Combat, Movement, Party | `{ from, to, target }` | Strategy swaps, movement mode changes |
-| `combat:target-changed` | Combat | Logging | `{ previous, current, reason }` | Decision logging |
-| `movement:request` | Combat, Party | Movement | `{ type, target, priority }` | Repositioning or rally requests |
-| `party:need-supply` | Party | Merchant | `{ character, needs }` | Supply request from hunter |
-| `party:status-update` | Party | Logging | `{ members, state }` | Party state changes |
-| `world:hostile-player-detected` | WorldModel | Combat, Logging | `{ player }` | Alert to new hostile player |
-| `world:special-monster-detected` | WorldModel | Objective, Logging | `{ monster }` | Alert to new special monster |
+| `objective:changed` | Objective | Logging | `{ from, to, target }` | Decision logging |
+| `targeting:changed` | Targeting | Logging | `{ previous, current, type, reason }` | Decision logging |
+| `world:hostile-player-detected` | WorldModel | Logging | `{ player }` | Alert logging |
+| `world:special-monster-detected` | WorldModel | Logging | `{ monster }` | Alert logging |
 | `system:error` | Any | Logging | `{ system, operation, error }` | Error reporting |
+
+**Removed signals**: `combat:target-changed` (replaced by `targeting:changed`), `movement:request` (movement reads context directly), `party:need-supply` (objective reads localStorage), `party:status-update` (party writes to localStorage).
+
+**Cross-character communication**: Real-time coordination uses `send_cm()` — see [CM protocol](#code-messages-cm) below. Passive sharing uses localStorage — see [localStorage sharing](#localstorage-sharing).
 
 This catalog will grow as contracts are defined. New events follow the `{system}:{signal}` naming convention.
 
@@ -112,7 +126,7 @@ scheduler.start()
 | Data | Owner | When Written | Recovery Use |
 |------|-------|-------------|-------------|
 | Current objective/state | Objective | On change | Resume objective after reload |
+| Merchant inventory/status | Objective (merchant strategy) | On change | Continue supply workflow |
 | Party roster status | Party | Periodic | Re-establish party without re-discovery |
-| Merchant inventory | Merchant | On change | Continue supply workflow |
 | Farm target override | Config | On manual change | Maintain target selection |
 | Log snapshot | Logging | Periodic | Post-mortem debugging |

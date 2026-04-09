@@ -30,9 +30,9 @@ Each decision records what was chosen, why, what was rejected, and what would ca
 
 ## D3 — Strategy Pattern with Factory Functions
 
-**Chosen**: Behavioral variation (class-specific combat, situational movement, merchant workflow phases) is handled through strategy objects — plain objects with known method signatures. Factory functions select strategies at initialization based on class; systems can swap strategies at runtime for situational changes.
+**Chosen**: Behavioral variation (class-specific combat, situational movement, merchant workflow phases) is handled through strategy objects — plain objects with known method signatures. Factory functions select strategies at initialization based on class; systems can swap strategies at runtime for situational changes. Strategies receive the full `ctx` object so they can read any shared context needed for their decisions without requiring interface changes as context evolves.
 
-**Why**: No inheritance hierarchy to grow out of control. Strategies are easy to test (plain objects), swap (reassign a variable), and compose. Adding a new class means adding a strategy file, not modifying a base class.
+**Why**: No inheritance hierarchy to grow out of control. Strategies are easy to test (plain objects), swap (reassign a variable), and compose. Adding a new class means adding a strategy file, not modifying a base class. Passing full `ctx` to strategies avoids brittle parameter lists that need updating whenever a new context slot is added.
 
 **Rejected**:
 - *Class inheritance hierarchies* — prior implementations confirmed these grow unwieldy. Base classes accumulate too much responsibility.
@@ -71,8 +71,10 @@ Each decision records what was chosen, why, what was rejected, and what would ca
 
 ## D7 — Event Bus for Secondary Signals
 
-**Chosen**: `ctx.bus` provides lightweight pub/sub for cross-system signals. The bus is for coordination signals ("I need potions", "objective changed"), not for primary control flow. Systems make decisions by reading world state, not by reacting to events.
+**Chosen**: `ctx.bus` provides lightweight pub/sub for secondary signals. Systems make decisions by reading shared context (`ctx.world`, `ctx.objective`, `ctx.targeting`), not by reacting to events. Currently, events are used for logging and diagnostics (e.g., `targeting:changed`, `objective:changed`).
 
-**Why**: Prior experience with event-driven control flow hit instability on server disconnects. Making events secondary (signals, not commands) preserves the approachability of event-driven coordination without the fragility of event-driven control.
+**Why**: Prior experience with event-driven control flow hit instability on server disconnects. Making events secondary preserves the approachability of event-driven coordination without the fragility of event-driven control.
+
+**Future use**: The scheduler may need to adjust system execution based on signals (e.g., priority bumps, immediate re-evaluation triggers). This is a valid extension of the bus beyond pure logging — the key constraint is that events remain signals ("something happened") rather than commands ("do this"), and systems never depend solely on events for correctness.
 
 **Revisit if**: Too many systems need synchronous coordination that events handle poorly; or if the bus becomes the de facto control flow despite the convention.

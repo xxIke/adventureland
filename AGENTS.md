@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Cross-agent bootstrap for AdventureLand bot — a browser-native bot system for [AdventureLand](https://adventure.land), a code MMORPG where players write JavaScript to control their characters. Nine identified components covering runtime, world model, objectives, party coordination, movement, combat, merchant, progression, and logging. Game docs: [adventure.land/docs](https://adventure.land/docs)
+Cross-agent bootstrap for AdventureLand bot — a browser-native bot system for [AdventureLand](https://adventure.land), a code MMORPG where players write JavaScript to control their characters. Systems: scheduler, event bus, world model, configuration, logging, targeting, attack, combat skills, merchant skills, movement, objective (hunter/merchant strategies), party, potion/regen. Game docs: [adventure.land/docs](https://adventure.land/docs)
 
 This file and `CLAUDE.md` must stay aligned — update both when shared bootstrap expectations change.
 
@@ -10,6 +10,7 @@ For non-trivial work, agents read in this order:
 
 1. Relevant `.agent/progress/*.json` — live workstream state
 2. `.agent/context/directives.md` — phase-scoped guidance
+3. `docs/game-api.md` — if implementing game API interactions
 4. `.agent/standards/core.md` — universal engineering standards
 5. Relevant workflow from `.agent/workflows/` if the task matches one
 
@@ -28,6 +29,10 @@ Only load what the task requires. Do not front-load the entire surface.
 | Shared skills | `.agent/skills/` |
 | Workflows | `.agent/workflows/` |
 | Quality checklists | `.agent/checklists/` |
+| Game API reference | `docs/game-api.md` |
+| Context map (ctx ownership) | `docs/architecture/context-map.md` |
+| Game server reference | `.agent/context/game-reference.md` |
+| Review findings | `docs/review/` |
 
 ## Boundary Rules
 

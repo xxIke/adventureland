@@ -40,10 +40,12 @@ Entry point for implementation work. Ensures M1 (documentation-first) and M3 (co
 6. **Check for existing shared solutions (M4).** Before implementing, verify no shared solution already exists for the need.
 
 7. **Dispatch implementation.** Execute implementation against documented contracts:
+   - Provide `docs/game-api.md` and `docs/architecture/context-map.md` as implementation context
    - Implement what the spec says, not what seems easiest
    - Every contract gets an implementation
    - No stubs or placeholder implementations
    - Verify the feature is actually reachable (called from somewhere)
+   - Implementation must satisfy code documentation standard from `.agent/standards/languages/javascript.md` (JSDoc on exports, file-level doc comments)
 
 8. **Update progress and documentation.** After implementation:
    - Update `.agent/progress/` workstream

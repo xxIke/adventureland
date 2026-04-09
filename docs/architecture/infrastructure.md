@@ -8,15 +8,17 @@ The context object is a plain JavaScript object created at boot and passed to ev
 
 ```
 ctx = {
-  world:     WorldModel instance   // sole writer: WorldModel system
-  bus:       EventBus instance     // pub/sub for cross-system signals
+  world:     {}                    // sole writer: WorldModel system
+  objective: {}                    // sole writer: Objective system
+  targeting: {}                    // sole writer: Targeting system
+  bus:       EventBus instance     // pub/sub for logging signals only
   config:    Configuration object  // roster, thresholds, toggles
   scheduler: Scheduler instance    // system registration and lifecycle
-  character: game global ref       // Adventure Land character reference
+  logger:    Logger instance       // structured logging
 }
 ```
 
-**Discipline**: Systems read `ctx.world` but do not write to it. Only the WorldModel system writes to `ctx.world`. The bus is for signals, not commands.
+**Discipline**: Each `ctx.*` data slot has exactly one writer. Systems read shared context but only write to their own slot. The bus is for logging signals, not control flow. Game globals (`character`, `parent`, `G`) are accessed directly — they are not on `ctx`.
 
 ## Scheduler
 
@@ -102,6 +104,28 @@ localStorage serves dual purpose: state persistence for disconnect recovery and 
 - `al_bot:logging:snapshot` — periodic log/status snapshot
 
 **Requirements**: R4, R46
+
+## Utility Functions
+
+Shared functions for game API interactions, standardized across systems. Utilities are NOT systems — they don't register with the scheduler or write to `ctx`. They are pure(ish) functions that strategies and systems call for common game interactions.
+
+**Design principle**: Strategy logic lives in strategies. Bot/world interactions are standardized as utility functions employed by strategies. This ensures DRY implementations and enables slice iteration — improving a utility improves all strategies that use it.
+
+**Planned utility categories**:
+
+| Category | Functions | Used By |
+|----------|-----------|---------|
+| **Inventory** | `findInventoryIndexes()`, `findPotionSlot()`, `findEmptySlot()`, `catalogInventory()` | Potion/Regen, Objective (merchant strategy) |
+| **Bank** | `depositItems()`, `retrieveItem()`, `depositJunk()` | Objective (merchant strategy) |
+| **Vendor** | `buyItem()`, `sellItem()` | Objective (merchant strategy) |
+| **Trade** | `findEmptyTradeSlot()`, `evaluateTrade()`, `sendItems()` | Objective (merchant strategy) |
+| **Party** | `maintainParty()`, `isFriendly()`, `getActiveCharacters()` | Party, WorldModel |
+| **Item evaluation** | `shouldUpgrade()`, `shouldCompound()`, `scoreItem()` | Objective (merchant strategy) |
+| **Movement helpers** | `nearLocation()`, `isLocationObject()` | Movement, Objective |
+
+Utilities are imported directly by the systems/strategies that need them — they are not on `ctx`.
+
+**Requirements**: R49 (testable core logic separable from API calls)
 
 ## Build Pipeline
 
