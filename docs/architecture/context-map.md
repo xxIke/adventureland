@@ -2,6 +2,8 @@
 
 Structured definition of what each system writes to and reads from `ctx`. Each `ctx.*` slot has exactly one writer. Systems read shared context but only write to their own slot.
 
+**Verification**: This context-map is verified against YAML frontmatter in each contract file (`docs/contracts/*.md`). Each contract declares its writes, reads, game_globals, and external dependencies in frontmatter. The context-map must match.
+
 ## Shared Context Slots
 
 ```yaml
@@ -21,7 +23,7 @@ ctx:
   objective:
     writer: Objective
     shape:
-      type: string               # 'farm' | 'travel' | 'recover' | 'idle' | 'follow' | 'event' | 'restock' | 'upgrade' | 'compound' | 'sell' | 'wander'
+      type: string               # 'farm' | 'travel' | 'recover' | 'idle' | 'follow' | 'event' | 'hunt' | 'restock' | 'upgrade' | 'compound' | 'sell' | 'wander' | 'deliver' | 'hunt-eval' | 'bank-ops' | 'trade-fulfill'
       target: string | null      # monster type string for farm objectives; null otherwise
       location: Location | null  # { coord: { x, y, map } } — extensible location object
       step: string | null        # current step within multi-step workflows
@@ -52,6 +54,9 @@ ctx:
       toggles:
         pvpDefense: boolean
         autoUpgrade: boolean
+        recoveryEnabled: boolean  # dev/prod flag: read persisted state on boot (R4)
+      restockThresholds:
+        potionsPerHunter: { hpot0, hpot1 }  # target potion counts (R23)
       specialMonsters: string[]
       friendlyPlayers: string[]
       farmTarget: string | null
@@ -59,7 +64,12 @@ ctx:
   party:
     writer: Party
     shape:
-      tank: string | null      # name of the party tank, recalculated on membership change
+      tank: string | null      # name of the party tank, assigned by merchant via localStorage
+      basic_dps: number | null # combined party DPS estimate, assigned by merchant via localStorage
+      travelSync:              # party travel coordination (R51)
+        destination: { x, y, map } | null
+        slowestSpeed: number | null
+        active: boolean
 
   bus:
     writer: EventBus (infrastructure)
@@ -92,10 +102,11 @@ Objective:
   reads:
     - ctx.world
     - ctx.config
+    - ctx.config.restockThresholds
   game_globals:
     - character
   external:
-    - localStorage (farm target, merchant status, party coordination)
+    - localStorage (farm target, merchant status, party coordination, item catalogue, gold baseline, hunter gear requests, hunter hunt state, party stats)
 
 Targeting:
   writes: ctx.targeting
@@ -151,6 +162,7 @@ Movement:
     - ctx.world.hostileMonsters
     - ctx.world.hostilePlayers
     - ctx.party.tank
+    - ctx.party.travelSync          # speed matching during group travel (R51)
     - ctx.config.thresholds.fleeHpPercent
   game_globals:
     - character
@@ -158,9 +170,10 @@ Movement:
     - smart_move()
     - stop()
     - distance()
+    - open_stand() / close_stand()  # merchant stand management (R52)
 
 Party:
-  writes: ctx.party (tank identification; also writes to localStorage and sends CMs)
+  writes: ctx.party (tank identification, travelSync; also writes to localStorage and sends CMs)
   reads:
     - ctx.world.partyMembers
     - ctx.objective.type
@@ -171,7 +184,7 @@ Party:
     - character
     - send_cm()
   external:
-    - localStorage (party status snapshots)
+    - localStorage (party status snapshots with inventory summary, travel coordination)
 
 PotionRegen:
   writes: nothing
@@ -212,4 +225,4 @@ Systems that write `ctx.*` slots must run before systems that read those slots:
 5. All others     -> read only (Attack, CombatSkills, Movement, PotionRegen, Logging)
 ```
 
-Party writes `ctx.party.tank` which Movement reads for kite decisions. Party should run before Movement in the scheduling order. Other group 5 systems have no ordering dependency on each other.
+Party writes `ctx.party.tank` and `ctx.party.travelSync` which Movement reads for kite decisions and speed matching. Party **must** run before Movement in the scheduling order (hard data dependency). Other group 5 systems have no ordering dependency on each other.

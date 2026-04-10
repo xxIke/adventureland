@@ -140,7 +140,15 @@ Covers attack execution, healing, class skills, conditions/debuffs, aggro manage
 ## Damage Calculation Heuristics
 
 - **What**: Estimate party DPS, individual character DPS, monster threat level for decision-making
-- **MVP**: Basic "easy monster" heuristic (hp < attack * 0.8). No formal DPS calculation.
-- **End-state**: Party DPS/HPS estimation from character stats. Monster danger scoring from G.monsters stats (HP, attack, speed, range, abilities). Use these to assess whether a farm target or hunt is viable for the current party composition.
-- **Notes**: hyper-fixate calculates party HPS/DPS. This feeds into objective decisions (which monster to farm) and hunt viability checks.
-- **Notes (additional)**: Simple formulas are sufficient — estimates serve as "should we fight / can we win" heuristics, not precise simulations. No need for strategy comparison or detailed simulation.
+- **MVP**: Basic "easy monster" heuristic (hp < attack * 0.8) for WorldModel categorization. For farmability assessment (R35), MVP returns a data object — NOT a comparative ROI score:
+  ```
+  { can_fight: boolean, gold_gain: number, xp_gain: number }
+  ```
+  - `can_fight`: boolean — can the party survive and kill this monster type (simple comparison at projected lvl 20 monster stats)
+  - `gold_gain`: gold(lvl 1) / ttk(lvl 1) — projected gold gain rate for sustained farming
+  - `xp_gain`: xp(lvl 1) / ttk(lvl 1) — projected xp gain rate for sustained farming
+  - Each value is calculated by a dedicated function (`canFight()`, `estimateTTK()`, `estimateDPS()`) so individual components can be tuned independently
+  - This data is for future objective decision-making, not immediate comparison. ROI comparison across multiple options is end-state, not MVP.
+- **End-state**: Party DPS/HPS estimation from character stats. Monster danger scoring from G.monsters stats (HP, attack, speed, range, abilities). Comparative farmability scoring to select optimal farm targets from candidates.
+- **Notes**: hyper-fixate calculates party HPS/DPS (`predict_dps()`, `calc_party_hps()`). This feeds into objective decisions (which monster to farm) and hunt viability checks. See utility function signatures in `docs/architecture/infrastructure.md`.
+- **Notes (additional)**: Simple formulas are sufficient — estimates serve as "should we fight / can we win" heuristics, not precise simulations.

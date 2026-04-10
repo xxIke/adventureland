@@ -33,8 +33,13 @@ export function createConfig() {
     toggles: {
       pvpDefense: true,
       autoUpgrade: false,
+      recoveryEnabled: false,
     },
     specialMonsters: ['phoenix', 'mvampire'],
+    restockThresholds: {
+      potionsPerHunter: { hpot0: 100, hpot1: 20 },
+    },
+    friendlyPlayers: [],
     farmTarget: null,
     reload,
   };

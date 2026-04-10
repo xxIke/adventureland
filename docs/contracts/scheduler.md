@@ -1,3 +1,18 @@
+---
+system: Scheduler
+writes:
+  ctx.scheduler:
+    - register: function
+    - start: function
+    - stop: function
+    - pause: function
+    - resume: function
+    - getStats: function
+reads: nothing
+game_globals: []
+external: []
+---
+
 # Scheduler Contract
 
 ## Identity

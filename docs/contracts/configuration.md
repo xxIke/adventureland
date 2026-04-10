@@ -1,3 +1,21 @@
+---
+system: Configuration
+writes:
+  ctx.config:
+    - roster: object
+    - thresholds: object
+    - toggles: object
+    - restockThresholds: object
+    - specialMonsters: string[]
+    - friendlyPlayers: string[]
+    - farmTarget: string | null
+reads: nothing
+game_globals:
+  - get_characters()
+external:
+  - localStorage
+---
+
 # Configuration Contract
 
 ## Identity
@@ -20,13 +38,13 @@ Creates and returns a configuration object. This is called once at boot and the 
 
 ### `config.reload()`
 
-Re-reads dynamic configuration sources (localStorage keys). Called by the merchant when updating farm target or active roster, and on boot.
+Re-reads dynamic configuration sources (localStorage keys). Called by boot.js on startup only. Configuration is immutable after boot. Dynamic values (farm target, active roster) are read from localStorage directly by the systems that need them — they do not trigger config reload.
 
 **Returns:** void
 
 **Postconditions:**
-- `config.farmTarget` reflects current `al_bot:config:farmTarget` value
-- `config.roster.active` reflects current `al_bot:config:activeRoster` value
+- `config.farmTarget` reflects `al_bot:config:farmTarget` value at boot time
+- `config.roster.active` reflects `al_bot:config:activeRoster` value at boot time
 - Static config (thresholds, toggles, special monsters) is unchanged
 
 ## Config Shape
@@ -52,11 +70,18 @@ ctx.config = {
   toggles: {
     pvpDefense: true,
     autoUpgrade: false,
+    recoveryEnabled: false,   // dev: cold start; prod: read persisted state on boot (R4)
+  },
+  restockThresholds: {
+    potionsPerHunter: { hpot0: 100, hpot1: 20 },  // target potion counts (R23)
   },
   specialMonsters: ["phoenix", "mvampire"],
   friendlyPlayers: [],      // owner IDs of friendly players (alt accounts, friends)
   farmTarget: null,         // mtype string or null, from localStorage
 }
+// Note: gold baseline target (R54) is stored in localStorage (al_bot:merchant:goldBaseline),
+// not in config — it is mutable merchant state, not static configuration.
+
 ```
 
 ## Behavior Contracts
@@ -70,10 +95,10 @@ ctx.config = {
 
 ### Farm Target
 
-1. `farmTarget` is read from `al_bot:config:farmTarget` in localStorage.
+1. `farmTarget` is read from `al_bot:config:farmTarget` in localStorage at boot.
 2. If the key is absent, `farmTarget` is `null` (no target override — objective system decides).
 3. The merchant is the intended writer of this key. Other characters read only.
-4. `config.reload()` re-reads this key.
+4. Systems that need current farm target read from localStorage directly — config is immutable after boot.
 
 ### Static vs Dynamic
 

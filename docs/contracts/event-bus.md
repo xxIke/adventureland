@@ -1,3 +1,15 @@
+---
+system: EventBus
+writes:
+  ctx.bus:
+    - on: function
+    - emit: function
+    - clear: function
+reads: nothing
+game_globals: []
+external: []
+---
+
 # Event Bus Contract
 
 ## Identity

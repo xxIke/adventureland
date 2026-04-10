@@ -133,7 +133,7 @@ export function createPotionRegen(ctx) {
     }
   }
 
-  function executePotion(type, desiredPotion) {
+  async function executePotion(type, desiredPotion) {
     const items = character.items;
     const potionList = type === 'hp' ? HP_POTIONS : MP_POTIONS;
     const skillName = type === 'hp' ? 'use_hp' : 'use_mp';
@@ -147,7 +147,7 @@ export function createPotionRegen(ctx) {
       if (last.slot !== desiredSlot && last.slot >= 0) {
         // Swap desired to the last potion position so use_skill consumes it
         try {
-          swap(desiredSlot, last.slot);
+          await swap(desiredSlot, last.slot);
         } catch (e) {
           ctx.logger.warn('potion-regen', `swap failed: ${e.message}, using last potion as-is`);
         }
@@ -164,7 +164,7 @@ export function createPotionRegen(ctx) {
         const fallbackSlot = findPotionSlot(items, name);
         const last = findLastPotionSlot(items, potionList);
         if (last.slot !== fallbackSlot && last.slot >= 0) {
-          try { swap(fallbackSlot, last.slot); } catch (e) { /* best effort */ }
+          try { await swap(fallbackSlot, last.slot); } catch (e) { /* best effort */ }
         }
         use_skill(skillName).catch(() => {});
         ctx.logger.debug('potion-regen', `${skillName} -> ${name} (fallback from ${desiredPotion})`);

@@ -1,3 +1,28 @@
+---
+system: Party
+writes:
+  ctx.party:
+    - tank: string | null
+    - basic_dps: number
+    - travelSync: object
+reads:
+  ctx.world:
+    - partyMembers
+  ctx.objective:
+    - type
+    - target
+  ctx.config:
+    - roster
+    - friendlyPlayers
+game_globals:
+  - character
+  - send_cm()
+external:
+  - "localStorage: party status snapshots"
+  - "localStorage: travel coordination"
+  - "localStorage: party stats"
+---
+
 # Party Contract
 
 ## Identity
@@ -98,6 +123,15 @@ Periodic snapshots written to localStorage for passive cross-character access.
   objective: string,     // current objective type from ctx.objective
   target: any,           // current objective target
   alive: boolean,
+  potions: {              // potion inventory for restock detection (R23/R25)
+    hpot0: number,
+    hpot1: number,
+    mpot0: number,
+    mpot1: number,
+  },
+  emptySlots: number,     // available inventory space
+  gold: number,           // gold on hand
+  needsResupply: boolean, // potions < 50% target OR inventory > 50% full
   lastUpdated: number,
 }
 ```
@@ -135,6 +169,9 @@ Typed messages for real-time coordination. CMs are for triggered responses — a
 | `'supply-request'` | Hunter -> Merchant | `{ needs: [{item, quantity}] }` | Request potions/supplies |
 | `'supply-delivery'` | Merchant -> Hunter | `{ arriving: true, eta: number }` | Merchant en route |
 | `'trade-ready'` | Merchant -> Hunter | `{}` | Ready for item exchange |
+| `'hunt-eval-request'` | Hunter -> Merchant | `{ monster, count, expiry }` | Hunter has new hunt, needs viability check (R37) |
+| `'hunt-eval-response'` | Merchant -> Hunter | `{ viable: boolean, target?, location? }` | Merchant's hunt viability assessment (R37) |
+| `'gear-available'` | Merchant -> Hunter | `{ items: [{name, level, slot}] }` | Notify hunter of available gear upgrades (R56) |
 
 ### CM Handling
 
@@ -158,24 +195,39 @@ tankScore = max_hp + armor + resistance
 
 Every 100 armor reduces incoming physical damage by 10% (diminishing). Every 100 resistance reduces incoming magical damage by 10% (diminishing). This formula provides a simple survivability proxy. It can be refined later if more granular threat modeling becomes relevant.
 
-### Calculation Trigger
+### Assignment
 
-Recalculated when:
-- A new member joins the party
-- A member leaves the party
-- On party system initialization
+Party stats (including tank) are calculated and assigned by the **merchant** character, which has full party context through localStorage status snapshots.
+
+- Merchant calculates tankScore for all party members from status snapshots
+- Merchant calculates basic party DPS from combined character stats
+- Merchant writes results to localStorage key `al_bot:party:stats` with shape:
+  ```
+  { tank: string, basic_dps: number, lastUpdated: number }
+  ```
+- All characters read `al_bot:party:stats` from localStorage and publish to `ctx.party`
+- This key is expandable for future cached/pre-calculated party heuristics
+
+**Why merchant**: Not all characters can see all party members in `parent.entities` (visibility range is limited). The merchant has full party context via localStorage status snapshots and is the best-positioned system for party composition awareness. Clear ownership: merchant is sole writer to `al_bot:party:stats`.
 
 ### Publishing
 
-The current tank is published to `ctx.party.tank` (character name string) so that other systems can reference it:
+The current tank and party stats are published to `ctx.party` so that other systems can reference them:
 - **Movement** reads `ctx.party.tank` to determine if this character should kite when targeted by a hostile (non-tank characters kite; tank holds ground).
 - **Targeting** may read `ctx.party.tank` for future aggro coordination (Phase 3+).
+- **Monster/Farming utilities** read `ctx.party.basic_dps` for farmability assessment.
 
-### Context Shape Addition
+### Context Shape
 
 ```
 ctx.party = {
-  tank: string | null,   // name of the current party tank, null if solo
+  tank: string | null,       // name of the current party tank, null if solo
+  basic_dps: number | null,  // combined party DPS estimate
+  travelSync: {              // party travel coordination (R51)
+    destination: { x, y, map } | null,
+    slowestSpeed: number | null,
+    active: boolean,
+  },
 }
 ```
 
@@ -208,7 +260,17 @@ During group travel (`ctx.objective.type === 'travel'`):
 }
 ```
 
-The party leader (merchant) writes the travel plan. Hunters read and follow.
+The party leader (merchant) writes the travel plan. Hunters read and follow. Merchant stand must close before any movement including travel sync (R52). Movement system reads `ctx.party.travelSync` for speed matching — if `active` is true, character speed is limited to `slowestSpeed`.
+
+**Requirements**: R51
+
+---
+
+## Trade-Slot Coordination (R55)
+
+Hunters maintain game trade slots listing needed items at 1g/item. The merchant fulfills own characters' trade-slot requests when nearby without price evaluation. This uses the game's built-in trade system, not CM or localStorage — the merchant scans nearby characters' trade slots and purchases listed items. WorldModel already categorizes `charactersOfferingTrade`.
+
+No Party system plumbing is needed for this — it is a game mechanic interaction handled by the Objective system's merchant strategy.
 
 ## Context Dependencies
 

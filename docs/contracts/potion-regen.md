@@ -1,3 +1,17 @@
+---
+system: PotionRegen
+writes: nothing
+reads:
+  ctx.world:
+    - hostileMonsters
+    - hostilePlayers
+game_globals:
+  - character
+  - parent.next_skill
+  - use_skill()
+  - swap()
+---
+
 # Potion/Regen Contract
 
 ## Identity
@@ -99,9 +113,9 @@ Since `use_skill('use_hp')` consumes the **last** HP potion in `character.items[
 
 1. **Scan inventory**: Iterate `character.items[]` to find available potions by type and their slot indices.
 2. **Select tier**: Based on missing amount, select the desired potion tier from the tables above.
-3. **Ensure position**: If the desired tier is not the last potion of its type in inventory, swap it to be last using `swap(from_slot, to_slot)`.
+3. **Ensure position**: If the desired tier is not the last potion of its type in inventory, swap it to be last using `await swap(from_slot, to_slot)` (swap is async — must await before use_skill).
 4. **Consume**: Call `use_skill('use_hp')` or `use_skill('use_mp')`.
-5. **Fallback**: If the desired tier is unavailable, fall back to the next available tier. If no potions are available, use `regen_hp`/`regen_mp`.
+5. **Fallback**: If the desired tier is unavailable, fall back to the next **lower** tier (e.g., hpot1 → hpot0). If no potion of any tier is available, use `regen_hp`/`regen_mp`. Never fall back to a higher tier — economy is the priority.
 
 ## Tick Sequence
 
@@ -175,3 +189,7 @@ None. Reads game globals and `ctx.world` directly.
 | R42 (explicit responsibilities) | System does one thing: manage recovery consumables. No combat, no targeting, no movement. |
 | R44 (no silent failures) | All errors caught and logged |
 | R48 (centralized thresholds) | Potion thresholds defined in contract; could be moved to config if tuning needed |
+
+## Future Extensions
+
+**Elixirs and consumable buffs**: End-state extension for managing persistent consumable buffs (elixirs) that provide stat boosts. Some may be always-on for certain characters, others situational. May compete for the same cooldown/scheduling as potions — needs verification. This would extend the recovery system's scope to include buff maintenance alongside HP/MP recovery.

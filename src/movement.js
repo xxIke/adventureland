@@ -8,12 +8,39 @@
  * of movement implementation.
  */
 
+import { openStand, closeStand, isStandOpen } from './utils.js';
+
+/** Default tick delay for combat movement calculations (ms). */
+const COMBAT_DELAY = 200;
+
+/**
+ * Find the nearest hostile entity targeting this character.
+ * Iterates all entities to find the closest one with target === character.name.
+ * @returns {object|null} nearest hostile entity, or null
+ */
+function findNearestHostileTargetingMe() {
+  let nearest = null;
+  let nearestDist = Infinity;
+  for (const id in parent.entities) {
+    const e = parent.entities[id];
+    if (e && e.target === character.name && !e.dead && e.visible) {
+      const d = distance(character, e);
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearest = e;
+      }
+    }
+  }
+  return nearest;
+}
+
 /**
  * Creates a movement strategy using the game's `smart_move` for long-distance
  * travel and direct `move` calls for combat positioning.
  *
- * Kiting uses a weighted vector: 70% away from the hostile, 30% toward the
- * attack target, keeping the character at range while maintaining DPS uptime.
+ * Kiting steers up to ±90° from the attacker's movement vector while maintaining
+ * range with the attack/heal target and validating destinations with can_move_to().
+ * Vector length = character.speed * (delay / 1000) per contract.
  *
  * @returns {{ name: string, travel: Function, approach: Function, kite: Function, flee: Function }}
  */
@@ -36,54 +63,74 @@ export function createSmartMoveStrategy() {
       const dx = tx - character.real_x;
       const dy = ty - character.real_y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      const moveDist = Math.min(character.speed * 0.25, dist - character.range);
+      const moveDist = Math.min(character.speed * (COMBAT_DELAY / 1000), dist - character.range);
       move(character.real_x + (dx / len) * moveDist, character.real_y + (dy / len) * moveDist);
     },
 
-    kite(target, characterRange, hostileRange) {
-      if (!target) return;
-      const tx = target.moving ? (target.going_x ?? target.real_x) : (target.real_x ?? target.x);
-      const ty = target.moving ? (target.going_y ?? target.real_y) : (target.real_y ?? target.y);
+    kite(target, attackerEntity) {
+      if (!target || !attackerEntity) return;
 
-      const hostile = findHostileTargetingMe();
-      if (!hostile) {
-        const dist = distance(character, target);
-        if (dist > characterRange) {
-          const dx = tx - character.real_x;
-          const dy = ty - character.real_y;
-          const len = Math.sqrt(dx * dx + dy * dy) || 1;
-          const moveDist = Math.min(character.speed * 0.25, dist - characterRange);
-          move(character.real_x + (dx / len) * moveDist, character.real_y + (dy / len) * moveDist);
+      const step = character.speed * (COMBAT_DELAY / 1000);
+
+      // Determine attacker's movement vector
+      let avx, avy;
+      if (attackerEntity.moving && attackerEntity.going_x !== undefined) {
+        avx = attackerEntity.going_x - (attackerEntity.real_x ?? attackerEntity.x);
+        avy = attackerEntity.going_y - (attackerEntity.real_y ?? attackerEntity.y);
+      } else {
+        // Attacker not moving — use vector from attacker toward character as base
+        avx = character.real_x - (attackerEntity.real_x ?? attackerEntity.x);
+        avy = character.real_y - (attackerEntity.real_y ?? attackerEntity.y);
+      }
+      const avLen = Math.sqrt(avx * avx + avy * avy) || 1;
+      avx /= avLen;
+      avy /= avLen;
+
+      // Target position for range maintenance
+      const tx = target.real_x ?? target.x;
+      const ty = target.real_y ?? target.y;
+      const distToTarget = distance(character, target);
+
+      // Try angles from 0° to ±90° from attacker vector, find valid move
+      const angles = [0, Math.PI / 6, -Math.PI / 6, Math.PI / 4, -Math.PI / 4, Math.PI / 3, -Math.PI / 3, Math.PI / 2, -Math.PI / 2];
+      let bestX = null;
+      let bestY = null;
+      let bestScore = -Infinity;
+
+      for (const angle of angles) {
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        const dirX = avx * cos - avy * sin;
+        const dirY = avx * sin + avy * cos;
+
+        const destX = character.real_x + dirX * step;
+        const destY = character.real_y + dirY * step;
+
+        if (!can_move_to(destX, destY)) continue;
+
+        // Score: prefer directions that maintain range with attack/heal target
+        const dx = tx - destX;
+        const dy = ty - destY;
+        const newDistToTarget = Math.sqrt(dx * dx + dy * dy);
+        const rangeOk = newDistToTarget <= character.range;
+        const score = rangeOk ? (1000 - Math.abs(angle)) : (-newDistToTarget);
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestX = destX;
+          bestY = destY;
         }
-        return;
       }
 
-      const hx = hostile.real_x ?? hostile.x;
-      const hy = hostile.real_y ?? hostile.y;
-      const safeDistance = hostileRange * 1.1;
-
-      const distToHostile = Math.sqrt(
-        (character.real_x - hx) ** 2 + (character.real_y - hy) ** 2
-      ) || 1;
-
-      if (distToHostile < safeDistance) {
-        const awayX = character.real_x - hx;
-        const awayY = character.real_y - hy;
-        const awayLen = Math.sqrt(awayX * awayX + awayY * awayY) || 1;
-
-        const toTargetX = tx - character.real_x;
-        const toTargetY = ty - character.real_y;
-        const toTargetLen = Math.sqrt(toTargetX * toTargetX + toTargetY * toTargetY) || 1;
-
-        const combinedX = (awayX / awayLen) * 0.7 + (toTargetX / toTargetLen) * 0.3;
-        const combinedY = (awayY / awayLen) * 0.7 + (toTargetY / toTargetLen) * 0.3;
-        const combinedLen = Math.sqrt(combinedX * combinedX + combinedY * combinedY) || 1;
-
-        const step = character.speed * 0.25;
-        move(
-          character.real_x + (combinedX / combinedLen) * step,
-          character.real_y + (combinedY / combinedLen) * step
-        );
+      if (bestX !== null) {
+        move(bestX, bestY);
+      } else if (distToTarget > character.range) {
+        // Can't kite safely — approach target instead
+        const dx = tx - character.real_x;
+        const dy = ty - character.real_y;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const moveDist = Math.min(step, distToTarget - character.range);
+        move(character.real_x + (dx / len) * moveDist, character.real_y + (dy / len) * moveDist);
       }
     },
 
@@ -101,21 +148,10 @@ export function createSmartMoveStrategy() {
       const dx = character.real_x - ax;
       const dy = character.real_y - ay;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      const step = character.speed;
+      const step = character.speed * (COMBAT_DELAY / 1000);
       move(character.real_x + (dx / len) * step, character.real_y + (dy / len) * step);
     },
   };
-}
-
-/** Scans `parent.entities` for the first visible, living entity targeting this character. */
-function findHostileTargetingMe() {
-  for (const id in parent.entities) {
-    const e = parent.entities[id];
-    if (e && e.target === character.name && !e.dead && e.visible) {
-      return e;
-    }
-  }
-  return null;
 }
 
 /**
@@ -123,7 +159,10 @@ function findHostileTargetingMe() {
  *
  * Modes: `idle` (no movement), `combat` (approach or kite), `travel` (smart_move
  * to objective location with retry logic), `flee` (run from hostiles at low HP).
- * Non-tank characters kite when they have aggro; tanks approach directly.
+ * Non-tank characters (and ranged characters even if tank) kite when they have aggro.
+ *
+ * Merchant characters have stand lifecycle management: close before any movement,
+ * open after travel arrival.
  *
  * @param {object} ctx - Shared context with `targeting`, `objective`, `party`, `config`, `world`, `logger`
  * @param {object} strategy - Movement strategy implementing travel/approach/kite/flee
@@ -136,10 +175,18 @@ export function createMovement(ctx, strategy) {
   let retryCount = 0;
   let retryTimer = null;
   let nullTargetTicks = 0;
+  const isMerchant = ctx.config.roster?.self?.isMerchant;
 
   function cancelTravel() {
     try { stop(); } catch (e) { /* best effort */ }
     travelPromise = null;
+  }
+
+  function ensureStandClosed() {
+    if (isMerchant && isStandOpen()) {
+      closeStand();
+      ctx.logger.debug('movement', 'Closed stand before movement');
+    }
   }
 
   function detectMode() {
@@ -185,6 +232,8 @@ export function createMovement(ctx, strategy) {
       return null;
     }
 
+    ensureStandClosed();
+
     const hostiles = [
       ...(ctx.world.hostileMonsters || []),
       ...(ctx.world.hostilePlayers || []),
@@ -203,22 +252,33 @@ export function createMovement(ctx, strategy) {
       return { delay: 200 };
     }
 
-    const dist = distance(character, target);
-    const shouldKite = !isPartyTank() && character.targets > 0;
+    ensureStandClosed();
+
+    const shouldKite = character.targets > 0 && (!isPartyTank() || character.range > 30);
 
     if (shouldKite) {
-      const hostile = findHostileTargetingMe();
-      const hostileRange = hostile?.range || 30;
-      try {
-        strategy.kite(target, character.range, hostileRange);
-      } catch (e) {
-        ctx.logger.error('movement', `kite error: ${e.message}`);
+      const attacker = findNearestHostileTargetingMe();
+      if (attacker) {
+        try {
+          strategy.kite(target, attacker);
+        } catch (e) {
+          ctx.logger.error('movement', `kite error: ${e.message}`);
+        }
+      } else {
+        // Being targeted but can't find attacker — approach target
+        const dist = distance(character, target);
+        if (dist > character.range) {
+          try { strategy.approach(target); } catch (e) { /* best effort */ }
+        }
       }
-    } else if (dist > character.range) {
-      try {
-        strategy.approach(target);
-      } catch (e) {
-        ctx.logger.error('movement', `approach error: ${e.message}`);
+    } else {
+      const dist = distance(character, target);
+      if (dist > character.range) {
+        try {
+          strategy.approach(target);
+        } catch (e) {
+          ctx.logger.error('movement', `approach error: ${e.message}`);
+        }
       }
     }
 
@@ -236,6 +296,8 @@ export function createMovement(ctx, strategy) {
     if (retryTimer && Date.now() < retryTimer) return { delay: 1000 };
     retryTimer = null;
 
+    ensureStandClosed();
+
     destination = coord;
     ctx.logger.info('movement', `Traveling to ${JSON.stringify(coord)}`);
 
@@ -245,6 +307,10 @@ export function createMovement(ctx, strategy) {
       travelPromise = null;
       destination = null;
       retryCount = 0;
+      if (isMerchant) {
+        openStand();
+        ctx.logger.debug('movement', 'Opened stand after travel arrival');
+      }
     }).catch((e) => {
       travelPromise = null;
       retryCount++;

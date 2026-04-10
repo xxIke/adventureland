@@ -27,15 +27,15 @@ Objective does NOT directly execute movement, attacks, or bank interactions. It 
 
 **Strategies**: Per-character-role. The objective system uses a role strategy that defines available objectives and transition logic:
 
-- **Hunter strategy** — objectives: farm, travel, recover, follow, event. Evaluated each tick based on world state (are we at farm location? is HP critical? did leader request travel?).
-- **Merchant strategy** — objectives: idle, restock, upgrade, compound, sell, wander, deliver. Multi-step workflows tracked via step/stepComplete. Inventory management, trade evaluation, and item cataloging use shared utility functions.
+- **Hunter strategy** — objectives: farm, travel, recover, follow, event, hunt. Evaluated each tick based on world state (are we at farm location? is HP critical? did leader request travel? is there a monster hunt to pursue?). Hunters also manage trade slots (listing needed items at 1g for passive resupply per R55) and store hunt state in localStorage for merchant evaluation (R37).
+- **Merchant strategy** — objectives: idle, restock, upgrade, compound, sell, wander, deliver, hunt-eval, bank-ops, trade-fulfill. Multi-step workflows tracked via step/stepComplete. Inventory management, trade evaluation, item cataloging, gear comparison, gold management, hunt evaluation, and NPC interactions use shared utility functions. Merchant is the system leader: drives gear progression, evaluates hunt viability, manages gold baseline (R54), fulfills own characters' trade-slot requests opportunistically (R55), and delivers gear improvements during resupply (R56). Bank operations (R58) are foundational workflow steps reused across restock/upgrade/compound objectives.
 
 Both follow the same pattern: evaluate state -> decide if transition needed -> update `ctx.objective`. This mirrors v2 where both Hunter and Merchant used identical state machine patterns with different state sets.
 
 **`ctx.objective` shape**:
 ```
 ctx.objective = {
-  type: string,       // current objective: 'farm', 'travel', 'restock', 'idle', etc.
+  type: string,       // 'farm' | 'travel' | 'recover' | 'idle' | 'follow' | 'event' | 'hunt' | 'restock' | 'upgrade' | 'compound' | 'sell' | 'wander' | 'deliver' | 'hunt-eval' | 'bank-ops' | 'trade-fulfill'
   target: any,        // objective-specific: farm target type, travel destination, etc.
   location: object,   // where this objective takes place (if relevant)
   step: string,       // current step within multi-step workflows (null for simple objectives)
@@ -56,7 +56,9 @@ ctx.objective = {
 **Events consumed**: CM messages (party directives, coordination), party status updates.
 **Scheduling**: Low-moderate frequency (~1-2s). Decisions don't need sub-second timing.
 
-**Requirements**: R15, R16, R21–R31
+**Requirements**: R3, R15, R16, R21–R31, R35, R37, R51–R58
+
+**Structural note**: Merchant-specific workflows (R52-R58) are routed through the Objective system's merchant strategy using utility functions. This preserves the "Objective decides, utilities execute" pattern. If merchant strategy complexity grows unwieldy, extraction of a dedicated Merchant Operations system is a documented revisit point.
 
 ---
 
@@ -111,9 +113,9 @@ ctx.objective = {
 
 ## Merchant Skills
 
-**Purpose**: Run merchant-specific skill loop (mluck, buff, bless for nearby characters).
+**Purpose**: Run merchant-specific skill loop (mluck, buff, bless for nearby characters) and emergency self-defense.
 
-**Responsibilities**: Identify nearby characters eligible for buffs/blessings. Execute merchant skills on their own cooldown cadences. Different pattern and frequency from combat skills.
+**Responsibilities**: Identify nearby characters eligible for buffs/blessings. Execute merchant skills on their own cooldown cadences. Different pattern and frequency from combat skills. Emergency `scare` for crowd control when `character.targets > 0` and HP is declining.
 
 **Reads**: `ctx.world` (nearby characters), game globals (skill cooldowns).
 **Writes**: None to shared state.
@@ -127,7 +129,7 @@ ctx.objective = {
 
 **Purpose**: Handle all character movement — travel, repositioning, kiting, fleeing.
 
-**Responsibilities**: Long-distance travel (wrapping `smart_move` initially). Combat repositioning — melee: approach and hold ground; ranged/heal: maintain `character.range` distance to target. Reactive kiting when a non-tank character is being targeted by a hostile (stay outside hostile's range while maintaining own range to target). Flee behavior when under attack at critical HP. Party travel synchronization (match slowest member speed, checkpoint coordination).
+**Responsibilities**: Long-distance travel (wrapping `smart_move` initially). Combat repositioning — melee: approach and hold ground; ranged/heal: maintain `character.range` distance to target. Reactive kiting when a non-tank character is being targeted by a hostile (stay outside hostile's range while maintaining own range to target). Flee behavior when under attack at critical HP. Party travel synchronization — match speed to slowest present party member, read `ctx.party.travelSync` for coordinated travel (R51). Merchant stand management — close stand before ALL movement (including short NPC repositioning), reopen stand after movement completes at destination (R52).
 
 **Mode selection**: Movement determines its mode each tick by reading `ctx.objective`, `ctx.targeting`, and character state:
 - `flee` — `character.targets > 0` and HP critically low. Inviolable.
@@ -137,13 +139,13 @@ ctx.objective = {
 
 Movement does not need to be told what mode to be in — it reads the current state and selects the appropriate mode. This eliminates the need for `movement:request` events from other systems.
 
-**Reads**: `ctx.objective` (what we should be doing and where), `ctx.targeting` (current target for repositioning), `ctx.world` (entity positions, hostiles for flee), `ctx.party` (tank identity for kite decisions), `ctx.config`.
+**Reads**: `ctx.objective` (what we should be doing and where), `ctx.targeting` (current target for repositioning), `ctx.world` (entity positions, hostiles for flee), `ctx.party` (tank identity for kite decisions, travelSync for speed matching), `ctx.config`.
 **Writes**: None to shared state.
 **Events consumed**: None — reads shared context directly.
 **Scheduling**: High frequency (~100-250ms) when actively repositioning or fleeing, low frequency when traveling or idle.
 **Strategies**: Smart-move wrapper (Phase 2), custom pathfinding (future).
 
-**Requirements**: R9, R10
+**Requirements**: R9, R10, R51, R52
 
 ---
 
@@ -173,9 +175,7 @@ Party does NOT make decisions about what to do — it handles the mechanical plu
 **Events consumed**: CM messages from other characters.
 **Scheduling**: Low frequency (~2-5s). Party state doesn't change rapidly.
 
-**Requirements**: R7, R8
-
----
+**Requirements**: R7, R8, R51
 
 ---
 
@@ -207,3 +207,18 @@ Party does NOT make decisions about what to do — it handles the mechanical plu
 **Scheduling**: Low frequency (~2-5s). Logging is not latency-sensitive.
 
 **Requirements**: R17, R18, R44, R45
+
+---
+
+## Requirement Traceability Notes
+
+**Satisfied by shared utility functions** (not a dedicated system — see `infrastructure.md`):
+- R33 (Map POI) — NPC/location queries via G data lookups
+- R34 (NPC Navigation) — Movement + utility functions for NPC location resolution
+
+**Unassigned `should` priority** (not required for MVP):
+- R36 (Pack/Zone reasoning)
+- R38 (Server event response)
+
+**Unassigned `later` priority** (deferred):
+- R32, R39, R59, R60

@@ -151,4 +151,4 @@ Covers entity classification, game data usage, monster assessment, gathering ski
 - **What**: Mage teleports party members to their location
 - **MVP**: Not needed for MVP. Characters travel independently.
 - **End-state**: Mage uses magiport to summon party members for fast regrouping after respawn or farm target change. Accept incoming magiports from friendly mages.
-- **Notes**: Magiport is a mage-specific utility skill. Default party is paladin, ranger, priest — mage is available as a rotational character but not in default composition.
+- **Notes**: Magiport is a mage-specific utility skill. Default MVP party is paladin, ranger, priest, merchant. All character classes are supported in rotation — mage, warrior, rogue can be swapped in with no-op skill strategies. MVP skill priorities are authored for the 4 default classes.

@@ -19,9 +19,23 @@ Mechanic-level intent definitions for MVP and end-state. Each file covers a cate
 | [gear-progression.md](gear-progression.md) | Improvement, acquisition, comparison, goals | 10 | Draft |
 | [world.md](world.md) | Entity classification, game data, gathering, crafting | 20 | Draft |
 
+## Reference Implementations
+
+Prior implementations provide working examples of many mechanics documented here:
+
+- **Previous bot (hyper-fixate)**: `../hyper-fixate/codes/` — utility functions, merchant logic, combat patterns, entity monitoring
+- **Previous bot (v2/archive)**: `archive/` directory and `codex` branch — earlier bot implementations
+- **Server reference (game API)**: `../IkeBot/reference/adventureland_mongodb/js/runner_functions.js`
+- **Server reference (skills/design)**: `../IkeBot/reference/adventureland_mongodb/design/`
+- **Server reference (server logic)**: `../IkeBot/reference/adventureland_mongodb/node/server.js`
+- **Server reference (engine)**: `../IkeBot/reference/common_engine/`
+- **Server reference (config)**: `../IkeBot/reference/adventureland_secretsandconfig/`
+
+**Do NOT reference ALClient or caracAL** — these are third-party open-source clients, not official game resources.
+
 ## Process
 
 1. Review each file, confirm/correct MVP and end-state intent
-2. Identify gaps in requirements (R1-R50) — add new requirements where needed
+2. Identify gaps in requirements (R1-R60) — add new requirements where needed
 3. Update architecture and contracts to support confirmed intent
 4. Implement against updated contracts

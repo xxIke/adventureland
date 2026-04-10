@@ -1,3 +1,32 @@
+---
+system: Movement
+writes: nothing
+reads:
+  ctx.objective:
+    - type
+    - location.coord
+  ctx.targeting:
+    - attackTarget
+    - healTarget
+  ctx.world:
+    - hostileMonsters
+    - hostilePlayers
+  ctx.party:
+    - tank
+    - travelSync
+  ctx.config:
+    - thresholds.fleeHpPercent
+game_globals:
+  - character
+  - move()
+  - smart_move()
+  - stop()
+  - distance()
+  - can_move_to()
+  - open_stand()
+  - close_stand()
+---
+
 # Movement Contract
 
 ## Identity
@@ -45,12 +74,17 @@ Main movement tick. Behavior depends on current mode:
 - **Approach**: If distance to target > `character.range`, call `strategy.approach(target)`. Approach stops at `character.range` distance — never moves to target's exact position.
 - **Hold ground** (melee pattern): Once within `character.range`, no further movement toward target. Melee characters approach and hold.
 - **Maintain distance** (ranged/heal pattern): Stay within `character.range` of target. If pushed closer (by target movement or other repositioning), re-establish distance.
-- **Kite check** (reactive, non-tank only): If `character.targets > 0` (being targeted by a hostile) and this character is not the party tank (see Party contract — tank identification):
-  - Identify the hostile entity targeting this character.
-  - If hostile IS the current target: maintain distance > `hostile.range` but < `character.range`. Call `strategy.kite(target, character.range, hostile.range)`.
-  - If hostile is NOT the current target: stay outside `hostile.range` while staying within `character.range` of actual target. Call `strategy.kite(target, character.range, hostile.range)`.
-  - Kiting is layered on top of normal positioning — it adds a constraint (avoid hostile's range) to the existing goal (stay within own range of target).
+- **Kite check** (reactive): If `character.targets > 0` (being targeted by a hostile) AND (this character is not the party tank OR character is ranged):
+  - Identify hostile entities targeting this character from `ctx.world.hostileMonsters`.
+  - If multiple attackers: use the **nearest** attacker as the kite reference entity.
+  - Determine the attacker's movement vector (direction of travel from position data).
+  - Steer up to ±90° from the attacker's vector to a position that maintains range with the attack/heal target AND is a valid move (`can_move_to()` — don't kite into walls/obstacles).
+  - Vector length = `character.speed * (delay / 1000)` — max distance the character can move before the next tick.
+  - If range with attack/heal target cannot be maintained while kiting, move as close as possible to the target.
+  - If hostile IS the current target: maintain a band between `hostile.range` and `character.range`.
+  - Call `strategy.kite(target, attackerEntity)`. Strategy reads `character.range` directly.
 - Auto-exit: if targeting clears (both targets null) for 2 consecutive ticks, exit combat mode.
+- **Combat movement vector length**: All combat movement (kite, approach, reposition) should calculate vector length as `character.speed * (delay / 1000)` — how far the character can actually move before the next tick. This is essential for projecting both character and enemy positions.
 - Return `{ delay: 200 }`.
 
 **Travel mode** (activated when `ctx.objective.location` is set and character is not at that location):
@@ -75,6 +109,25 @@ Modes have a strict priority: `flee` > `combat` > `travel` > `idle`.
 - Combat repositioning activates when the targeting system has a target. Overrides travel.
 - Travel resumes when higher-priority modes expire.
 - Movement evaluates mode priority each tick based on current state — it does not rely on external events to set modes.
+
+### Merchant Stand Management (R52)
+
+For merchant characters, the Movement system manages stand lifecycle around movement:
+
+1. **Before any movement** (travel, repositioning, flee): Ensure stand is closed before moving. Call `closeStand()` utility if stand is open. This applies to ALL movement including short NPC repositioning during workflow steps.
+2. **After merchant travel completes** (arrived at destination): Call `openStand()` utility to reopen the stand.
+3. Stand state is checked at the beginning of each tick when movement is needed.
+
+Movement's responsibility is the movement lifecycle: ensure closed before move, open after merchant travel arrival. Other systems may also interact with stand management utilities for their own purposes (e.g., Objective opening stand at idle position). Stand utilities are shared — see infrastructure.md.
+
+**Move function variants**: Consider providing different movement interfaces so calling systems get different contractual guarantees (e.g., a "merchant move" that includes stand open at destination vs a "reposition" that doesn't).
+
+### Party Travel Sync (R51)
+
+During group travel, Movement reads `ctx.party.travelSync` for speed matching:
+- If `travelSync.active` is true, character movement speed is set to `travelSync.slowestSpeed` instead of full speed.
+- Speed resets to full when within arrival distance of destination.
+- Merchant stand must close before travel sync movement (R52).
 
 ### `movement.stop()`
 
@@ -103,7 +156,7 @@ A movement strategy is a plain object with these methods (D3, R9):
   name: string,
   travel(destination) -> Promise,
   approach(target) -> void,
-  kite(target, characterRange, hostileRange) -> void,
+  kite(target, attackerEntity) -> void,
   flee(hostiles) -> void,
 }
 ```
@@ -111,7 +164,7 @@ A movement strategy is a plain object with these methods (D3, R9):
 - `name` — string identifier for logging (e.g., `'smart-move'`, `'custom-path'`)
 - `travel(destination)` — execute long-distance travel. Returns a promise that resolves on arrival or rejects on failure.
 - `approach(target)` — move toward target entity, stopping at `character.range` distance. Uses `move(x, y)` with vector math. Must NOT move to target's exact position.
-- `kite(target, characterRange, hostileRange)` — maintain position within `characterRange` of target while staying outside `hostileRange` of the hostile targeting this character. Uses `move(x, y)`. The movement system passes both range values; the strategy computes the safe corridor.
+- `kite(target, attackerEntity)` — maintain position within `character.range` of target while evading the attacker. Strategy reads `character.range` directly. Uses `move(x, y)` with `can_move_to()` validation. Steers up to ±90° from attacker's movement vector.
 - `flee(hostiles)` — move away from hostile entities. Uses `move(x, y)`.
 
 ### Movement Implementation Notes (from v2 and game-api.md)
@@ -209,3 +262,5 @@ None in Phase 2. Phase 3 may add `movement:arrived` for objective coordination.
 | R42 (explicit responsibilities) | Movement moves. Does not attack, heal, select targets, or use potions. |
 | R44 (no silent failures) | All movement errors caught and logged with retry state |
 | R47 (bounded loop ownership) | One scheduler registration; no internal timers |
+| R51 (party travel sync) | Speed matching via `ctx.party.travelSync` during group travel |
+| R52 (merchant stand) | Close stand before all movement, reopen at destination |

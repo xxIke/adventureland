@@ -4,9 +4,11 @@
  *
  * Periodically invites roster members to the party, publishes character status
  * to localStorage for cross-tab coordination, and handles incoming CMs from
- * friendly characters. Tank is elected as the party member with the highest
- * combined HP + armor + resistance.
+ * friendly characters. Tank and party stats are assigned by the merchant via
+ * localStorage (al_bot:party:stats); all characters read from there.
  */
+
+import { countItem } from './utils.js';
 
 /** Scores a party member's suitability as tank based on survivability stats. */
 function calculateTankScore(member) {
@@ -43,13 +45,19 @@ function isFriendly(name, ctx) {
  * @returns {{ tick: Function, sendMessage: Function, getState: Function }}
  */
 export function createParty(ctx) {
-  ctx.party = { tank: null };
+  ctx.party = {
+    tank: null,
+    basic_dps: null,
+    travelSync: { destination: null, slowestSpeed: null, active: false },
+  };
 
   let statusTimer = 0;
   const STATUS_INTERVAL = 5000;
   const STATUS_KEY_PREFIX = 'al_bot:party:';
+  const PARTY_STATS_KEY = 'al_bot:party:stats';
+  const isMerchant = ctx.config.roster?.self?.isMerchant;
 
-  function updateTank() {
+  function updateTankLocal() {
     const members = ctx.world?.partyMembers || [];
     if (members.length === 0) {
       ctx.party.tank = null;
@@ -70,12 +78,80 @@ export function createParty(ctx) {
     ctx.party.tank = bestName;
   }
 
+  function readPartyStats() {
+    try {
+      const raw = localStorage.getItem(PARTY_STATS_KEY);
+      if (!raw) return null;
+      const stats = JSON.parse(raw);
+      if (stats && stats.lastUpdated && Date.now() - stats.lastUpdated < 30000) {
+        return stats;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function writePartyStats() {
+    if (!isMerchant) return;
+
+    const roster = ctx.config.roster;
+    if (!roster) return;
+
+    // Calculate tank from all party member status snapshots
+    let bestTank = character.name;
+    let bestScore = calculateTankScore(character);
+    let totalDps = 0;
+
+    for (const name of roster.active) {
+      try {
+        const raw = localStorage.getItem(`${STATUS_KEY_PREFIX}${name}:status`);
+        if (!raw) continue;
+        const snap = JSON.parse(raw);
+        if (!snap || !snap.alive || Date.now() - snap.lastUpdated > 30000) continue;
+
+        const score = calculateTankScore(snap);
+        if (score > bestScore) {
+          bestScore = score;
+          bestTank = snap.name;
+        }
+
+        // Estimate DPS from character attack stats if available
+        if (snap.attack && snap.frequency) {
+          totalDps += snap.attack * snap.frequency;
+        }
+      } catch (e) {
+        // Skip unparseable snapshots
+      }
+    }
+
+    try {
+      localStorage.setItem(PARTY_STATS_KEY, JSON.stringify({
+        tank: bestTank,
+        basic_dps: totalDps,
+        lastUpdated: Date.now(),
+      }));
+    } catch (e) {
+      ctx.logger.warn('party', `Failed to write party stats: ${e.message}`);
+    }
+  }
+
+  function updatePartyContext() {
+    const stats = readPartyStats();
+    if (stats) {
+      ctx.party.tank = stats.tank;
+      ctx.party.basic_dps = stats.basic_dps;
+    } else {
+      // Fallback: local tank calculation when no merchant stats available
+      updateTankLocal();
+    }
+  }
+
   function assembleParty() {
     const roster = ctx.config.roster;
     if (!roster) return;
 
     const currentParty = get_party();
-    const isMerchant = roster.self?.isMerchant;
 
     for (const name of roster.active) {
       if (name === character.name) continue;
@@ -106,6 +182,28 @@ export function createParty(ctx) {
     if (now - statusTimer < STATUS_INTERVAL) return;
     statusTimer = now;
 
+    const restockThresholds = ctx.config.restockThresholds?.potionsPerHunter || {};
+    const potions = {
+      hpot0: countItem('hpot0'),
+      hpot1: countItem('hpot1'),
+      mpot0: countItem('mpot0'),
+      mpot1: countItem('mpot1'),
+    };
+
+    let emptySlots = 0;
+    for (let i = 0; i < character.items.length; i++) {
+      if (character.items[i] === null) emptySlots++;
+    }
+
+    // Check if any potion is below 50% of target
+    let potionLow = false;
+    for (const key in restockThresholds) {
+      if (potions[key] !== undefined && potions[key] < restockThresholds[key] * 0.5) {
+        potionLow = true;
+        break;
+      }
+    }
+
     const snapshot = {
       name: character.name,
       ctype: character.ctype,
@@ -117,9 +215,17 @@ export function createParty(ctx) {
       map: character.map,
       x: character.real_x,
       y: character.real_y,
+      attack: character.attack,
+      frequency: character.frequency,
+      armor: character.armor,
+      resistance: character.resistance,
       objective: ctx.objective?.type || 'idle',
       target: ctx.objective?.target || null,
       alive: !character.rip,
+      potions,
+      emptySlots,
+      gold: character.gold,
+      needsResupply: potionLow || emptySlots < character.items.length * 0.5,
       lastUpdated: now,
     };
 
@@ -166,7 +272,7 @@ export function createParty(ctx) {
     if (isFriendly(name, ctx)) {
       accept_party_invite(name);
       ctx.logger.info('party', `accepted invite from ${name}`);
-      updateTank();
+      updatePartyContext();
     }
   }
 
@@ -182,9 +288,14 @@ export function createParty(ctx) {
 
       const memberCount = (ctx.world?.partyMembers || []).length;
       if (memberCount !== lastMemberCount) {
-        updateTank();
         lastMemberCount = memberCount;
       }
+
+      // Merchant writes party stats; all characters read them
+      if (isMerchant) {
+        writePartyStats();
+      }
+      updatePartyContext();
 
       publishStatus();
     } catch (e) {
@@ -205,7 +316,7 @@ export function createParty(ctx) {
     }
   }
 
-  updateTank();
+  updatePartyContext();
 
   return {
     tick,
@@ -215,7 +326,7 @@ export function createParty(ctx) {
       const roster = ctx.config.roster;
       const members = Object.keys(currentParty);
       const missing = (roster?.active || []).filter(n => n !== character.name && !currentParty[n]);
-      return { members, missing, tank: ctx.party.tank };
+      return { members, missing, tank: ctx.party.tank, basic_dps: ctx.party.basic_dps };
     },
   };
 }

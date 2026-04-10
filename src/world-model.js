@@ -25,7 +25,8 @@ export function createWorldModel(ctx) {
   function isFriendly(entity) {
     if (entity.owner === character.owner) return true;
     if (entity.party && entity.party === character.party) return true;
-    if (character.friends && character.friends.includes(entity.owner)) return true;
+    const friendlyPlayers = ctx.config.friendlyPlayers || [];
+    if (friendlyPlayers.includes(entity.owner)) return true;
     return false;
   }
 

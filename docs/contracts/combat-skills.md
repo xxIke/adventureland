@@ -1,3 +1,16 @@
+---
+system: CombatSkills
+writes: nothing
+reads:
+  ctx.targeting:
+    - attackTarget
+game_globals:
+  - character
+  - use_skill()
+  - is_on_cooldown()
+  - parent.next_skill
+---
+
 # Combat Skills Contract
 
 ## Identity
@@ -63,14 +76,29 @@ Class skill strategies need access to:
 
 Strategies are responsible for managing their own skill priority ordering and cooldown sequencing. The system does not prescribe a particular skill rotation — strategies decide which skill to use when multiple are available.
 
-### `createNoOpSkillStrategy()`
+### MVP Class Skill Strategies
 
-Phase 2 ships a no-op strategy. Class skill strategies are designed later with proper per-class contracts:
+The default party composition (paladin, ranger, priest) ships with MVP skill strategies for key classes. Other classes use the no-op strategy.
+
+#### `createPriestSkillStrategy()`
+
+- `name`: `'priest'`
+- `useSkills(ctx)`: Uses `partyheal` when multiple party members are injured (2+ members below 80% HP). Checks `is_on_cooldown('partyheal')` before use. Returns `{ delay }` based on next available skill cooldown.
+
+#### `createPaladinSkillStrategy()`
+
+- `name`: `'paladin'`
+- `useSkills(ctx)`: Uses `selfheal` when character HP below 60%. Checks `is_on_cooldown('selfheal')` before use. Returns `{ delay }` based on next available skill cooldown.
+
+#### `createNoOpSkillStrategy()`
 
 - `name`: `'none'`
 - `useSkills()`: no-op, returns `{ delay: 2000 }`
+- Used for classes without defined MVP skills (warrior, mage, rogue, ranger).
 
-Future skill strategies will be per-class (warrior, mage, priest, ranger, etc.) and may also account for equipment-granted skills. Each class strategy will need its own documented skill priority and cooldown management approach.
+Future skill strategies will be per-class with full skill rotations. Each class strategy will need its own documented skill priority and cooldown management approach.
+
+**Note**: Merchant combat skill (`scare` for emergency self-defense) is handled by the Merchant Skills system, not Combat Skills. See systems.md.
 
 ## Context Dependencies
 

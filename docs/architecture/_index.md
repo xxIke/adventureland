@@ -64,7 +64,7 @@ Server disconnect detected
 
 | File | Contents |
 |------|----------|
-| [decisions.md](decisions.md) | The 7 confirmed architectural decisions with rationale |
+| [decisions.md](decisions.md) | 9 architectural decisions (8 confirmed, 1 pending) with rationale |
 | [systems.md](systems.md) | Per-system purpose, responsibilities, reads/writes, scheduling |
 | [context-map.md](context-map.md) | Structured `ctx` slot definitions and per-system read/write dependencies |
 | [infrastructure.md](infrastructure.md) | Scheduler, event bus, shared context, config, localStorage, build, utilities |

@@ -36,10 +36,10 @@
 
 ### R37 — Monster Hunt Participation
 
-- **Description**: The bot should support monster hunt workflows — acquiring hunts from NPCs, evaluating party capability, and completing hunts.
-- **Why**: Monster hunts are explicitly called out across prior work and are part of the token progression path.
-- **Baseline**: Acquire hunt targets from NPC, assess party capability, hunt target, turn in completion.
-- **Priority**: `should`
+- **Description**: The bot must support monster hunt workflows — acquiring hunts from NPCs, evaluating party capability, and completing hunts.
+- **Why**: Monster hunts are explicitly called out across prior work and are part of the token progression path. Hunts provide monster tokens, a valuable progression currency.
+- **Baseline**: Hunters travel to monsterhunt NPC, accept hunts, store hunt state (character.s.monsterhunt) in localStorage. Merchant evaluates viability via DPS/TTK heuristics (assume lvl 20+ monsters). Merchant responds via CM with target update for viable hunts. ~30 min timer per hunt; expiry carries no penalty. Turn in at NPC for monster tokens. If hunt target is beyond party scope with basic attacks, wait for timer to expire and seek new hunt.
+- **Priority**: `must`
 
 ### R38 — Server Event Response
 
@@ -70,3 +70,12 @@
 - **Why**: Game reference data includes these attributes. Attacking a reflect-immune target or an evasion-heavy target with the wrong skills wastes resources.
 - **Baseline**: Awareness of enemy defensive attributes. Avoid obviously bad attacks, prefer effective actions.
 - **Priority**: `should`
+
+## Progression Mechanics
+
+### R59 — Tracker and Passive Buffs
+
+- **Description**: Hunters should keep tracker device in inventory for kill credit toward persistent passive buffs.
+- **Why**: Passive buff accumulation is a long-term progression mechanic. Tracker must be in inventory during kills to receive credit. Buffs are gated behind tracked kill counts for specific monster types.
+- **Baseline**: Tracker in hunter keep-list (part of inventory management per R21). No active bot logic needed for MVP — passive mechanic. End-state: buff farming objective to direct hunters toward specific monsters for targeted buff unlocks.
+- **Priority**: `later`

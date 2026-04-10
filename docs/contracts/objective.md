@@ -1,3 +1,37 @@
+---
+system: Objective
+writes:
+  ctx.objective:
+    - type: string
+    - target: string | null
+    - location: Location | null
+    - step: string | null
+    - stepComplete: boolean
+    - role: string
+    - lastUpdated: number
+reads:
+  ctx.world:
+    - entityLists
+    - partyState
+    - mapContext
+  ctx.config:
+    - farmTarget
+    - roster
+    - thresholds
+    - restockThresholds
+game_globals:
+  - character
+external:
+  - "localStorage: farm target"
+  - "localStorage: merchant status"
+  - "localStorage: party coordination"
+  - "localStorage: item catalogue"
+  - "localStorage: gold baseline"
+  - "localStorage: hunter gear requests"
+  - "localStorage: hunter hunt state"
+  - "localStorage: party stats"
+---
+
 # Objective Contract
 
 ## Identity
@@ -12,7 +46,7 @@ The Objective system decides what the bot should be doing and publishes that dec
 - `ctx.config` — reads `farmTarget`, roster, thresholds
 - `ctx.logger` — logs objective transitions
 - `ctx.bus` — emits `objective:changed` for logging
-- localStorage — reads/writes coordination data (farm target, merchant status, party directives)
+- localStorage — reads/writes coordination data (farm target, merchant status, party directives, item catalogue, gold baseline, hunter gear requests, hunter hunt state)
 - Game globals: `character`
 
 **Does NOT read** `ctx.targeting` or any combat system. Objective decisions are based on world state and configuration, not on what targeting has selected.
@@ -76,7 +110,7 @@ Location = {
 The `coord` field is the primary data — Movement reads it to determine travel destination and whether the character has arrived. The Location object is intentionally extensible; future objective needs (e.g., zone boundaries, arrival radius, waypoints) can be added as sibling fields to `coord` without changing the core contract.
 
 **Resolution**: Objective resolves location from game data when setting an objective:
-- `'farm'` objective: resolve pack from `G.maps` by matching `target` monster type, extract zone center from `boundary` array
+- `'farm'` objective: resolve pack from `G.maps` by matching `target` monster type, extract zone center from `boundary` array. For MVP, search maps in order: mainland, mansion, spooky forest. Return first matching pack.
 - Merchant step locations: resolve NPC positions from `G.maps[mapName].npcs[]`
 - `null` when the objective doesn't require being at a specific place
 
@@ -105,20 +139,34 @@ The `coord` field is the primary data — Movement reads it to determine travel 
 | `'farm'` | Farm monsters at a location. | Monster type string | Pack/zone location |
 | `'travel'` | Travel to a new location. | Destination | Destination |
 | `'recover'` | Character died or HP critical. Respawn/recover. | `null` | Safe location or spawn |
-| `'follow'` | Follow party leader. | Leader name | `null` (dynamic) |
-| `'event'` | Participate in a server event. | Event type | Event location |
+| `'hunt'` | Complete monster hunt assignment. | Hunt monster type | Hunt target location |
+| `'follow'` | Follow user-controlled character (R60). | Leader name | `null` (dynamic) |
+| `'event'` | Participate in a server event (R38). | Event type | Event location |
 
 ### Transition Logic
 
 Evaluated each tick. Higher-priority conditions override lower:
 
 1. **Dead** (`character.rip`) -> `'recover'`
-2. **Farm target set** (`ctx.config.farmTarget` exists):
+2. **Active monster hunt** (merchant directed via CM, hunt timer not expired) -> `'hunt'` (temporarily overrides farm target)
+3. **Farm target set** (`ctx.config.farmTarget` exists):
    - Not at farm location -> `'travel'` to farm location
    - At farm location -> `'farm'`
-3. **No farm target** -> `'idle'`
+4. **No farm target** -> `'idle'`
 
-Phase 3 implements `idle`, `farm`, `travel`, `recover`. `follow` and `event` are deferred.
+Phase 3 implements `idle`, `farm`, `travel`, `recover`. Phase 4+ adds `hunt`. `follow` and `event` are deferred.
+
+### Monster Hunt Acceptance (R37)
+
+When no active hunt (`!character.s.monsterhunt`), hunter periodically travels to monsterhunt NPC, calls `interact("monsterhunt")`, and stores hunt state in localStorage (`al_bot:hunter:{name}:huntState`). This triggers merchant evaluation. If merchant responds with a viable hunt via CM, hunter's farm target is temporarily overridden to the hunt target. Hunt timer is ~30 min; expiry carries no penalty — hunter simply returns to normal farming.
+
+### Trade-Slot Management (R55)
+
+During idle/farm states, hunters evaluate potion levels and post needed items to game trade slots at 1g/item. This enables passive resupply when the merchant is nearby. Trade-slot management is a background task, not a separate objective type.
+
+### Gear Request (R56)
+
+Hunters periodically read the merchant's item catalogue from localStorage (`al_bot:merchant:itemCatalogue`). Using simple comparison (same item name + higher level = upgrade), hunters write gear requests to `al_bot:hunter:{name}:gearRequest`. Merchant gathers and delivers during resupply.
 
 ### `createHunterObjectiveStrategy()`
 
@@ -133,10 +181,14 @@ Phase 3 implements `idle`, `farm`, `travel`, `recover`. `follow` and `event` are
 | Type | Meaning | `target` | Steps |
 |------|---------|----------|-------|
 | `'idle'` | Monitor party status, evaluate what to do next. | `null` | none |
-| `'restock'` | Resupply hunters with potions, collect junk. | Party location | `travel-to-bank` -> `withdraw` -> `buy-potions` -> `travel-to-party` -> `deliver` -> `collect-junk` -> `travel-to-bank` -> `deposit` |
-| `'upgrade'` | Upgrade an item. | Item to upgrade | `acquire-item` -> `acquire-scroll` -> `travel-to-upgrade` -> `execute` |
-| `'compound'` | Compound items. | Item to compound | `acquire-items` -> `acquire-scroll` -> `travel-to-upgrade` -> `execute` |
-| `'sell'` | Sell overflow inventory to NPCs. | Sell location | `travel-to-vendor` -> `sell` |
+| `'restock'` | Resupply hunters with potions and gear, collect junk. | Party location | `travel-to-bank` -> `withdraw` -> `buy-potions` -> `gather-gear-requests` -> `travel-to-party` -> `deliver-potions` -> `deliver-gear` -> `collect-junk` -> `travel-to-bank` -> `deposit` -> `check-gold-baseline` |
+| `'upgrade'` | Upgrade an item (stop at grade 1 scroll requirement). | Item to upgrade | `acquire-item` -> `acquire-scroll` -> `travel-to-upgrade` -> `execute` |
+| `'compound'` | Compound items (stop at grade 1 scroll requirement). | Item to compound | `acquire-items` -> `acquire-scroll` -> `travel-to-upgrade` -> `execute` |
+| `'sell'` | Sell items to Ponty for gold (R53). | Ponty location | `travel-to-ponty` -> `sell` |
+| `'deliver'` | Deliver gear improvements to hunters (R56). | Hunter location | `gather-items` -> `travel-to-hunter` -> `trade` -> `collect-old` |
+| `'hunt-eval'` | Evaluate hunter hunt viability (R37). | Hunt data | `read-hunts` -> `evaluate` -> `respond-cm` |
+| `'bank-ops'` | Foundational bank operations (R58). | Bank location | `travel-to-bank` -> `deposit-gold` -> `store-items` -> `retrieve-items` |
+| `'trade-fulfill'` | Fulfill own characters' trade-slot requests (R55). | Nearby character | `scan-trades` -> `fulfill` |
 | `'wander'` | Visit predefined locations for economy tasks. | Route | Per-location steps |
 
 ### Transition Logic
@@ -144,10 +196,16 @@ Phase 3 implements `idle`, `farm`, `travel`, `recover`. `follow` and `event` are
 Evaluated each tick from `'idle'`:
 
 1. **Dead** -> `'recover'`
-2. **Hunters need potions** (localStorage inventory check shows low potions) -> `'restock'`
-3. **Have items to upgrade/compound** (inventory catalog evaluation) -> `'upgrade'` or `'compound'`
-4. **Inventory full** -> `'sell'`
-5. **Nothing to do** -> `'idle'` (continue monitoring)
+2. **Nearby own characters have unfulfilled trade slots** -> `'trade-fulfill'` (opportunistic, no travel needed)
+3. **Hunters need resupply** (localStorage status shows low potions or high inventory, or fixed interval ~5-30 min) -> `'restock'`
+4. **Hunter hunt state needs evaluation** (localStorage hunt state exists, not yet evaluated) -> `'hunt-eval'`
+5. **Have items to upgrade/compound** (inventory catalog evaluation, grade 0 scrolls only for MVP) -> `'upgrade'` or `'compound'`
+6. **Inventory full or overflow items** -> `'sell'` (at Ponty — only NPC that buys items)
+7. **Nothing to do** -> `'idle'` (continue monitoring, stand open near Ponty at ~(0,0) for visibility)
+
+### Gold Baseline Management (R54)
+
+After each restock cycle, merchant checks gold against baseline target stored in localStorage (`al_bot:merchant:goldBaseline`). If not set, initialize to current total gold (bank + on merchant). Grow baseline by ~10% of gold retrieved from hunters. Lossy trade practices (R29) only operate with gold exceeding baseline.
 
 ### Multi-Step Workflow Progression
 
@@ -188,10 +246,19 @@ reads:
     - partyMembers
     - hostileMonsters
     - hostilePlayers
+    - charactersOfferingTrade  # trade-slot fulfillment (R55)
   ctx.config:
     - farmTarget
     - roster
     - thresholds
+    - restockThresholds        # potion targets per hunter (R23)
+external:
+  localStorage:
+    - al_bot:merchant:goldBaseline    # gold management (R54)
+    - al_bot:merchant:itemCatalogue   # gear delivery (R56)
+    - al_bot:hunter:{name}:huntState  # hunt evaluation (R37)
+    - al_bot:hunter:{name}:gearRequest # gear requests (R56)
+    - al_bot:party:{name}:status      # restock detection (R23)
 ```
 
 ## Behavior Contracts
@@ -240,5 +307,13 @@ None. Reads localStorage and CM messages for coordination data.
 | R21-R29 (merchant) | Merchant strategy with multi-step workflows and utility functions |
 | R30 (party-capability targeting) | Merchant strategy evaluates party state for farm target selection |
 | R31 (objective type distinction) | Strategy supports multiple objective types per role |
+| R37 (monster hunt) | Hunter hunt acceptance + merchant hunt evaluation via localStorage/CM |
 | R42 (explicit responsibilities) | Objective publishes context. Does not move, attack, or target. |
 | R44 (no silent failures) | All errors caught and logged |
+| R51 (party travel sync) | Objective transitions account for party travel coordination needs |
+| R52 (merchant stand) | Merchant strategy manages stand state for workflow transitions |
+| R53 (NPC selling) | Sell objective uses Ponty interaction via utility |
+| R54 (gold management) | Merchant strategy checks/updates gold baseline after resupply |
+| R55 (trade-slot resupply) | Merchant fulfills own characters' trade-slot requests opportunistically |
+| R56 (gear delivery) | Merchant gathers and delivers gear improvements during resupply |
+| R58 (bank operations) | Foundational bank workflow steps reused across merchant objectives |

@@ -1,3 +1,29 @@
+---
+system: Targeting
+writes:
+  ctx.targeting:
+    - attackTarget: Entity | null
+    - healTarget: Entity | null
+    - lastUpdated: number
+reads:
+  ctx.world:
+    - hostilePlayers
+    - hostileMonsters
+    - targetMonsters
+    - specialMonsters
+    - easyMonsters
+    - partyMembers
+  ctx.objective:
+    - type
+  ctx.config:
+    - farmTarget
+    - toggles.pvpDefense
+game_globals:
+  - character
+  - distance()
+external: []
+---
+
 # Targeting Contract
 
 ## Identity
@@ -37,7 +63,7 @@ Main evaluation tick. Executes the following sequence:
 
 1. **Death check**: If `character.rip`, clear all targets, return.
 2. **Validate current targets**: If attack target is dead (`target.dead` or `target.rip`), not visible, or not in `parent.entities`, clear it with reason `'died'` or `'lost'`. Same for heal target.
-3. **Evaluate targets**: Iterate `strategies` in order. Call `strategy.evaluate(ctx, currentState)` for each. The first strategy returning a non-null `attackTarget` or `healTarget` wins. If a heal strategy returns a `healTarget`, skip remaining strategies. If it returns null, fall through to the next (attack) strategy.
+3. **Evaluate targets**: Iterate `strategies` array in order. For each strategy, call `strategy.evaluate(ctx, currentState)`. If a strategy returns a non-null `healTarget`, stop iteration — heal target wins. If a strategy returns null for both targets, continue to the next strategy. The first strategy returning a non-null `attackTarget` wins. If all strategies return null, clear all targets.
 4. **Apply stickiness**: If the strategy returns the same target as current, no change. If different, emit `targeting:changed` with reason `'selected'` or `'priority'`.
 5. **Update `ctx.targeting`**: Write attack target, heal target, and `lastUpdated` timestamp.
 
@@ -111,14 +137,19 @@ When selecting from `targetMonsters` or `easyMonsters` (tiers where targets are 
 
 This prevents multiple party members from piling onto the same easy target while others go unfought — a problem observed in v2 where ranged units killed melee's targets before melee arrived.
 
+### Hunt Target Awareness (R37)
+
+During an active monster hunt (`ctx.objective.type === 'hunt'`), the hunt target monster type is handled by the objective system setting `farmTarget` to the hunt monster type. This causes `targetMonsters` in WorldModel to automatically include hunt targets — no targeting system changes needed. When the hunt completes or expires, objective restores the original farm target.
+
 ### Aggro Coordination
 
 For high-HP targets (future: configurable threshold), non-tank characters should wait to attack until the tank has aggro:
 
 - If `entity.target !== tankName`, non-tank characters set `attackTarget` but the Attack system should defer execution until aggro is confirmed.
 - This is a targeting policy — the targeting system provides the information, and the Attack system reads a flag or checks the condition.
+- Hunt targets (R37) are particularly relevant for aggro coordination since they tend to be high-level monsters where squishy characters pulling aggro is dangerous.
 
-**Note**: Aggro coordination is a Phase 3 concern (requires party awareness). Phase 2 targets do not need it.
+**Note**: Aggro coordination is a Phase 3+ concern (requires party awareness). Phase 2 targets do not need it.
 
 ## Targeting Strategy Interface
 

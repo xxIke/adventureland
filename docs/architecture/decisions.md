@@ -61,6 +61,8 @@ Each decision records what was chosen, why, what was rejected, and what would ca
 
 **Revisit if**: Data volume exceeds localStorage limits; or if IndexedDB becomes necessary for structured queries.
 
+**Note**: The schema has expanded beyond initial persistence/sharing to include merchant workflows (gold baseline, item catalogue, hunt state, gear requests). All new keys follow the `al_bot:{owner}:{key}` convention with documented ownership, shape, and freshness. See infrastructure.md for the full key listing.
+
 ## D6 — Shared World Model (One Writer, Many Readers)
 
 **Chosen**: One system (WorldModel) polls game state and maintains a filtered, categorized entity model in `ctx.world`. All other systems read from it. No other system writes to `ctx.world`.
@@ -78,3 +80,15 @@ Each decision records what was chosen, why, what was rejected, and what would ca
 **Future use**: The scheduler may need to adjust system execution based on signals (e.g., priority bumps, immediate re-evaluation triggers). This is a valid extension of the bus beyond pure logging — the key constraint is that events remain signals ("something happened") rather than commands ("do this"), and systems never depend solely on events for correctness.
 
 **Revisit if**: Too many systems need synchronous coordination that events handle poorly; or if the bus becomes the de facto control flow despite the convention.
+
+## D8 — Merchant Stand Lifecycle
+
+Movement is responsible for ensuring stand is closed before any movement and for opening the stand when a merchant completes travel to a destination. Other systems may also interact with stand management utilities for their own purposes (e.g., Objective opening stand at idle position).
+
+Stand management utilities (`openStand()`, `closeStand()`, `isStandOpen()`) are shared utilities defined in infrastructure.md. Movement is the primary consumer for movement-lifecycle stand management.
+
+**Revisit if**: Stand state conflicts arise between systems.
+
+## D9 — Merchant Complexity Revisit (Pending)
+
+Merchant workflows (R52-R58) are routed through the Objective system's merchant strategy + shared utility functions. If merchant strategy complexity grows unwieldy, extraction of a dedicated Merchant Operations system is a documented revisit point. Not an active architectural change.

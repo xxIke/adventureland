@@ -22,13 +22,13 @@ Each requirement uses this format:
 
 | File | Coverage | Requirements |
 |------|----------|-------------|
-| [core.md](core.md) | Bootstrapping, lifecycle, recovery, state awareness, party, movement, combat, objectives, logging, configuration | R1–R20 |
-| [merchant-and-progression.md](merchant-and-progression.md) | Inventory, supply, item improvement, economy, objective selection | R21–R32 |
-| [world-and-game-systems.md](world-and-game-systems.md) | Map/travel, monster assessment, hunts/events, skills/conditions | R33–R41 |
+| [core.md](core.md) | Bootstrapping, lifecycle, recovery, state awareness, party, movement, combat, objectives, logging, configuration, party travel, follow | R1–R20, R51, R60 |
+| [merchant-and-progression.md](merchant-and-progression.md) | Inventory, supply, item improvement, economy, objective selection, stand management, NPC selling, gold management, trade-slot resupply, gear delivery, gear goals, banking | R21–R32, R52–R58 |
+| [world-and-game-systems.md](world-and-game-systems.md) | Map/travel, monster assessment, hunts/events, skills/conditions, tracker/buffs | R33–R41, R59 |
 | [nonfunctional.md](nonfunctional.md) | Maintainability, observability, recoverability, configurability, testability, browser constraints | R42–R50 |
 
 ## Priority Summary
 
-- **must**: 30 requirements — needed for a functioning bot
-- **should**: 15 requirements — strong near-term capabilities
+- **must**: 42 requirements — needed for a functioning bot
+- **should**: 13 requirements — strong near-term capabilities
 - **later**: 5 requirements — valuable but not foundational

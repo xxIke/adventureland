@@ -28,6 +28,7 @@ export function createLogger(bus) {
   const maxBuffer = 50;
   const systemLevels = {};
   let globalLevel = LEVELS.info;
+  let statsProvider = null;
 
   function shouldLog(system, level) {
     const threshold = system in systemLevels ? systemLevels[system] : globalLevel;
@@ -105,7 +106,7 @@ export function createLogger(bus) {
         character: character.name,
         timestamp: Date.now(),
         entries: [...buffer],
-        stats: null,
+        stats: statsProvider ? statsProvider() : null,
       };
       // scheduler stats are read via ctx at call time
       // caller wires this; tick is registered with scheduler which is on ctx
@@ -125,5 +126,9 @@ export function createLogger(bus) {
     });
   }
 
-  return { log, fatal, error, warn, info, debug, setLevel, setMessage, getBuffer, tick };
+  function setStatsProvider(fn) {
+    statsProvider = fn;
+  }
+
+  return { log, fatal, error, warn, info, debug, setLevel, setMessage, getBuffer, tick, setStatsProvider };
 }

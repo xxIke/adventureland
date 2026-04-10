@@ -2,7 +2,20 @@
 
 Shared reference for Adventure Land game API behavior relevant to bot design. Documents function semantics, cooldown groups, entity properties, and game mechanics that contracts and implementations must respect.
 
-This is not a comprehensive API reference — it captures the subset of game behavior that has caused bugs or confusion in prior implementations.
+This is not a comprehensive API reference — it captures the subset of game behavior that has caused bugs or confusion in prior implementations. Utility functions (see `docs/architecture/infrastructure.md`) are the primary abstraction for game API access — systems should call utilities where they exist rather than raw game API.
+
+## Reference Sources
+
+For anything not documented here, reference the game server source directly:
+
+- **Server reference (game API)**: `../IkeBot/reference/adventureland_mongodb/js/runner_functions.js`
+- **Server reference (skills/design)**: `../IkeBot/reference/adventureland_mongodb/design/skills.js`
+- **Server reference (server logic)**: `../IkeBot/reference/adventureland_mongodb/node/server.js`
+- **Server reference (engine)**: `../IkeBot/reference/common_engine/`
+- **Server reference (config)**: `../IkeBot/reference/adventureland_secretsandconfig/`
+- **Previous implementation patterns**: `../hyper-fixate/codes/`
+
+**Do NOT reference ALClient or caracAL** — these are third-party open-source clients, not official game resources. They will conflate available API/mechanisms and introduce incorrect assumptions.
 
 ## Cooldown Groups
 
@@ -39,6 +52,11 @@ The game has independent cooldown groups. Functions within a group share a coold
 ### Class Skill Cooldowns
 
 Individual skills have independent cooldowns checked via `parent.next_skill[skill_name]` or `is_on_cooldown(skill_name)`. These are independent from both the attack/heal group and the recovery group.
+
+`is_on_cooldown(skill)` — Game API function. Implementation from server source:
+1. If `G.skills[skill].share` exists, delegates to `is_on_cooldown(G.skills[skill].share)` (follows cooldown sharing chain)
+2. Returns `true` if `parent.next_skill[skill]` exists and `new Date() < parent.next_skill[skill]`
+3. Returns `false` otherwise
 
 ## Entity Properties
 
@@ -91,8 +109,15 @@ Individual skills have independent cooldowns checked via `parent.next_skill[skil
 
 | Property | Description |
 |----------|-------------|
-| `character.items[]` | Inventory array — `null` for empty slots, item objects for occupied |
+| `character.items[]` | Inventory array (42 slots) — `null` for empty slots, item objects for occupied |
 | `entity.slots` | Equipment/trade slots object — keys include `trade1`-`trade30` for trade listings |
+
+**Item object shape** (entries in `character.items[]`):
+- `name` (string) — item identifier (e.g., `"hpot0"`, `"sword"`)
+- `level` (number|undefined) — item level for upgradeable/compoundable items; undefined for consumables
+- `q` (number|undefined) — stack quantity for stackable items (potions, scrolls); undefined or absent for non-stackable
+- Null entries represent empty inventory slots
+- Template metadata (type, grade, upgrade/compound eligibility, stat bonuses) is looked up via `G.items[item.name]`
 
 ## Movement Functions
 
@@ -142,7 +167,8 @@ CMs are real-time, per-character messages. Use for active coordination that need
 | `change_target(entity)` | Update the game UI target indicator |
 | `loot()` | Pick up all nearby chests |
 | `get_chests()` | Returns object of nearby lootable chests — check before calling `loot()` |
-| `swap(slot_a, slot_b)` | Swap two inventory slots |
+| `swap(slot_a, slot_b)` | Swap two inventory slots. **Async** — returns Promise. Must `await` before `use_skill()` to ensure inventory state is updated. |
+| `interact(npc_type)` | Interact with nearby NPC by type. Returns promise: `{started:true}`, `{completed:true}`, or `{failed:true}`. Currently only accepts `"monsterhunt"`. Must be near the monsterhunt NPC. |
 | `get_characters()` | Returns list of account's characters with online status |
 | `game_log(text)` | Display text in the game log |
 | `set_message(text)` | Set the character's overhead status message |
@@ -157,10 +183,26 @@ CMs are real-time, per-character messages. Use for active coordination that need
 | `character.owner` | Account owner name |
 | `character.ctype` | Character class |
 | `character.friends` | Friends list — **structure needs verification** against live game |
+| `character.s` | Status effects/buffs object. Keys are condition names, values are condition state objects. |
+| `character.s.monsterhunt` | Active monster hunt state (when present): `{ id: string, c: number, ms: number }` — `id` is monster type to hunt, `c` is remaining kill count, `ms` is time remaining in milliseconds. |
+| `character.stand` | Boolean — whether merchant stand is currently open |
+
+## Game Client Globals
+
+### `parent`
+
+The game client iframe parent object. Key properties:
+
+| Property | Description |
+|----------|-------------|
+| `parent.entities` | Object keyed by entity ID containing all nearby entities. Refreshed by game client on server ticks. |
+| `parent.next_skill[skill_name]` | Object mapping skill names to Date objects representing when that skill comes off cooldown. |
+
+**Performance note**: The game provides helper functions `is_npc(entity)`, `is_monster(entity)`, `is_character(entity)` but for hot paths like entity monitoring (WorldModel survey), prefer direct property checks (e.g., `entity.type === "monster"`) to avoid unnecessary function call overhead. Previous implementations demonstrate this pattern in entity iteration loops.
 
 ## Game Data (`G`)
 
-The global `G` object contains static game reference data loaded at startup. The `G` structure separates template data (monsters, NPCs, items) from placement data (in maps). Full type definitions are available in the ALClient reference (`reference/ALClient/source/definitions/adventureland-data.ts`).
+The global `G` object contains static game reference data loaded at startup. The `G` structure separates template data (monsters, NPCs, items) from placement data (in maps). Full definitions are available in the server reference (`design/skills.js`, `design/items.js`, etc.).
 
 ### Maps (`G.maps[mapName]`)
 
@@ -292,7 +334,7 @@ Growth formulas derived from server code (`server.js:level_monster`, `server.js:
 
 | Path | Contents |
 |------|----------|
-| `G.skills` | Skill definitions (cooldowns, ranges, costs) |
+| `G.skills` | Skill definitions — key properties per skill: `cooldown` (ms), `range`, `mp` (cost), `level` (requirement), `share` (cooldown sharing reference), `class` (class restrictions array), `damage_type`, `hostile` (boolean), `wtype` (weapon type restrictions). See `design/skills.js` in server reference for full schema. |
 | `G.classes` | Character class stat tables |
 | `G.conditions` | Status effect definitions |
 | `G.drops` | Drop tables for monsters, maps |
@@ -319,7 +361,6 @@ Growth formulas derived from server code (`server.js:level_monster`, `server.js:
 ## Unverified / Needs Testing
 
 - Exact structure of `character.friends` (flat array? object? keyed by name or owner?)
-- Whether `swap()` is synchronous or requires awaiting before `use_skill()` will see the new inventory state
 - Exact behavior of `smart_move()` cancellation — does `stop()` cause the promise to reject?
 - Exact party acceptance callback mechanism (socket events vs global handlers)
 - Whether `G.maps[mapName].ref` provides pre-resolved NPC positions for all maps

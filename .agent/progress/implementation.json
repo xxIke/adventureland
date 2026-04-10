@@ -5,7 +5,7 @@
   "objective": "Implement all systems from Phase 2 through Phase 4 against redesigned contracts",
   "scope": "Phase 2 (targeting, attack, combat-skills, potion-regen, movement), Phase 3 (objective, party), Phase 4 (merchant strategy, merchant-skills)",
   "why_now": "Foundation complete, audit done, contracts redesigned and corrected. Implementation is the next link in the M1 chain.",
-  "current_focus": ["Phase 4: merchant strategy, merchant-skills"],
+  "current_focus": ["Phase 4: merchant strategy, merchant-skills contract"],
   "related_context": [
     "docs/contracts/_index.md",
     "docs/architecture/context-map.md",
@@ -13,6 +13,23 @@
     "docs/review/audit-v0.1.0.md"
   ],
   "recent_updates": [
+    {
+      "date": "2026-04-10",
+      "summary": "Contract alignment pass: Fixed boot.js TDZ error and ctx initialization. Added missing config fields (recoveryEnabled, restockThresholds, friendlyPlayers). Logging stats provider. World-model friendlyPlayers integration. Potion-regen await swap(). Movement fully rewritten: ±90° kite logic with can_move_to(), vector length per contract, merchant stand management, nearest-attacker selection. Party: full ctx.party shape, localStorage al_bot:party:stats read/write, complete status snapshot with potions/gold/needsResupply. Combat skills: priest (partyheal) and paladin (selfheal) strategies. Boot.js: class-specific strategy wiring. Movement contract kite signature fixed. Utility functions implemented (src/utils.js).",
+      "artifacts": [
+        "src/boot.js",
+        "src/configuration.js",
+        "src/logging.js",
+        "src/world-model.js",
+        "src/potion-regen.js",
+        "src/movement.js",
+        "src/party.js",
+        "src/combat-skills.js",
+        "src/utils.js",
+        "docs/contracts/movement.md"
+      ],
+      "next": ["Phase 4 merchant strategy", "Author merchant-skills contract"]
+    },
     {
       "date": "2026-04-08",
       "summary": "Phase 2 and Phase 3 implemented. Targeting system supports melee/ranged/heal strategy composition. Movement rewritten with reactive kiting for non-tanks. Potion-regen uses character.targets + ctx.world hostiles. Objective system with hunter strategy. Party system with tank identification. Boot.js rewired. combat.js deleted.",
@@ -63,7 +80,8 @@
       "last_touched": "2026-04-08",
       "next_action": "None — implemented",
       "evidence": ["src/world-model.js", "src/configuration.js", "src/logging.js"],
-      "notes": "World-model contract revised: friendly/hostile now independent categories, friendlyPlayers config added."
+      "last_touched": "2026-04-10",
+      "notes": "Contract alignment: config added recoveryEnabled, restockThresholds, friendlyPlayers. World-model isFriendly() uses ctx.config.friendlyPlayers. Logging has setStatsProvider() for scheduler stats in snapshots."
     },
     "audit_and_redesign": {
       "description": "Audit existing implementation, redesign system decomposition, revise contracts",
@@ -107,7 +125,8 @@
       "last_touched": "2026-04-08",
       "next_action": "Review against contract",
       "evidence": ["src/combat-skills.js"],
-      "notes": "No-op strategy for Phase 2. Strategy interface documented for future class strategies."
+      "last_touched": "2026-04-10",
+      "notes": "Priest (partyheal) and paladin (selfheal) MVP strategies implemented. Boot.js wires class-specific strategy based on character.ctype."
     },
     "phase2_potion_regen": {
       "description": "Potion/Regen — uses character.targets + world hostiles, adaptive scheduling",
@@ -118,7 +137,8 @@
       "last_touched": "2026-04-08",
       "next_action": "Review against contract",
       "evidence": ["src/potion-regen.js"],
-      "notes": "Revised: combat context from character.targets + ctx.world hostiles. All returns provide { delay }."
+      "last_touched": "2026-04-10",
+      "notes": "Contract alignment: swap() calls now awaited. executePotion is async. Combat context from character.targets + ctx.world hostiles."
     },
     "phase2_movement": {
       "description": "Movement — reads ctx.objective + ctx.targeting, reactive kiting for non-tanks",
@@ -129,7 +149,8 @@
       "last_touched": "2026-04-08",
       "next_action": "Review against contract",
       "evidence": ["src/movement.js"],
-      "notes": "Rewritten. Mode detection from ctx each tick. Melee approach+hold, ranged maintain range, reactive kite when non-tank targeted."
+      "last_touched": "2026-04-10",
+      "notes": "Full contract alignment: ±90° kite logic with can_move_to() validation, vector length = speed*(delay/1000), nearest-attacker selection, merchant stand management (close before move, open after travel). Kite trigger: targets > 0 AND (!tank OR ranged). Imports utils for stand functions."
     },
     "phase2_boot_wiring": {
       "description": "Boot.js — all systems wired, strategy selection at boot, conditional registration",
@@ -140,7 +161,8 @@
       "last_touched": "2026-04-08",
       "next_action": "Review against context-map execution order",
       "evidence": ["src/boot.js"],
-      "notes": "combat.js deleted. Strategy selection: character.heal > 0 adds heal, character.range > 30 selects ranged vs melee. Attack/combat-skills conditional on !isMerchant."
+      "last_touched": "2026-04-10",
+      "notes": "Fixed isMerchant TDZ error. Added ctx.party and ctx.objective initialization. Logger stats provider wired. Class-specific combat skill strategy selection. All imports updated."
     },
     "phase3_objective": {
       "description": "Objective system — context publisher with hunter strategy",
@@ -162,7 +184,8 @@
       "last_touched": "2026-04-08",
       "next_action": "Review against contract",
       "evidence": ["src/party.js"],
-      "notes": "Tank score = max_hp + armor + resistance. Recalculated on party membership change. ctx.party.tank published."
+      "last_touched": "2026-04-10",
+      "notes": "Full ctx.party shape (tank, basic_dps, travelSync). Merchant writes al_bot:party:stats; all chars read. Status snapshot includes potions, emptySlots, gold, needsResupply. Imports countItem from utils."
     }
   }
 }

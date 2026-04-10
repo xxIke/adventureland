@@ -1,3 +1,20 @@
+---
+system: Attack
+writes: nothing
+reads:
+  ctx.targeting:
+    - attackTarget
+    - healTarget
+game_globals:
+  - character
+  - attack()
+  - heal()
+  - can_attack()
+  - loot()
+  - get_chests()
+  - change_target()
+---
+
 # Attack Contract
 
 ## Identity

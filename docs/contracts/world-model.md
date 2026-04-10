@@ -1,3 +1,27 @@
+---
+system: WorldModel
+writes:
+  ctx.world:
+    - specialMonsters: Entity[]
+    - targetMonsters: Entity[]
+    - easyMonsters: Entity[]
+    - hostileMonsters: Entity[]
+    - hostilePlayers: Entity[]
+    - partyMembers: Entity[]
+    - charactersOfferingTrade: Entity[]
+    - lastUpdated: number
+reads:
+  ctx.config:
+    - specialMonsters
+    - farmTarget
+    - friendlyPlayers
+game_globals:
+  - character
+  - parent.entities
+  - G
+external: []
+---
+
 # WorldModel Contract
 
 ## Identity
@@ -81,6 +105,12 @@ Friendly and hostile are **independent categories** — not being friendly does 
 - `partyMembers` always includes `character` (self) as the first entry.
 - Friendly detection uses: same `owner`, or owner in `ctx.config.friendlyPlayers` list.
 - A character not classified as friendly is NOT automatically hostile — hostility requires `entity.target` matching a party member AND not being friendly.
+
+### PvP Zone Awareness (R14)
+
+WorldModel should expose whether the current map is a PvP zone. This information is available from `G.maps[character.map].pvp` (boolean). When in a PvP zone, entity monitoring should be more aggressive — all non-friendly player characters are potential threats even without active `entity.target` against party members.
+
+This is a future enhancement. Current hostile player detection (active targeting check) is sufficient for MVP.
 
 ### Special Monster List
 

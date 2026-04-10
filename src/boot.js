@@ -19,7 +19,7 @@ import { createWorldModel } from './world-model.js';
 import { createLogger } from './logging.js';
 import { createTargeting, createMeleeTargetingStrategy, createRangedTargetingStrategy, createHealTargetingStrategy } from './targeting.js';
 import { createAttack } from './attack.js';
-import { createCombatSkills, createNoOpSkillStrategy } from './combat-skills.js';
+import { createCombatSkills, createNoOpSkillStrategy, createPriestSkillStrategy, createPaladinSkillStrategy } from './combat-skills.js';
 import { createPotionRegen } from './potion-regen.js';
 import { createMovement, createSmartMoveStrategy } from './movement.js';
 import { createObjective, createHunterStrategy } from './objective.js';
@@ -29,15 +29,20 @@ const bus = createEventBus();
 const scheduler = createScheduler(bus);
 const config = createConfig();
 const logger = createLogger(bus);
+logger.setStatsProvider(() => scheduler.getStats());
 
 const ctx = {
   world: {},
+  objective: { type: 'idle', target: null, location: null, step: null, stepComplete: false, role: null, lastUpdated: 0 },
   targeting: { attackTarget: null, healTarget: null, lastUpdated: 0 },
+  party: { tank: null, basic_dps: null, travelSync: { destination: null, slowestSpeed: null, active: false } },
   bus,
   config,
   scheduler,
   logger,
 };
+
+const isMerchant = ctx.config.roster?.self?.isMerchant;
 
 const worldModel = createWorldModel(ctx);
 
@@ -46,8 +51,6 @@ const objectiveStrategy = isMerchant
   : createHunterStrategy();
 const objective = createObjective(ctx, objectiveStrategy);
 const party = createParty(ctx);
-
-const isMerchant = ctx.config.roster?.self?.isMerchant;
 
 const targetingStrategies = [];
 if (!isMerchant) {
@@ -81,7 +84,15 @@ scheduler.register('targeting', targeting.tick, { interval: 250 });
 // Phase 5 — readers (no ordering dependency on each other)
 if (!isMerchant) {
   const attack = createAttack(ctx);
-  const combatSkills = createCombatSkills(ctx, createNoOpSkillStrategy());
+  let skillStrategy;
+  if (character.ctype === 'priest') {
+    skillStrategy = createPriestSkillStrategy();
+  } else if (character.ctype === 'paladin') {
+    skillStrategy = createPaladinSkillStrategy();
+  } else {
+    skillStrategy = createNoOpSkillStrategy();
+  }
+  const combatSkills = createCombatSkills(ctx, skillStrategy);
   scheduler.register('attack', attack.tick, { interval: 200 });
   scheduler.register('combat-skills', combatSkills.tick, { interval: 500 });
 }

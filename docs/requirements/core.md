@@ -22,14 +22,14 @@
 
 - **Description**: The bot must recover from death and resume operation automatically.
 - **Why**: Long-running unattended behavior is impossible otherwise.
-- **Baseline**: Detect death, respawn, and re-enter a valid operating state without manual intervention.
+- **Baseline**: Detect death, respawn, and re-enter a valid operating state without manual intervention. Respawn places character in town; all cooldowns reset by respawn. Bot must travel back to farm zone after respawn. End-state: wait briefly for possible priest revive before auto-respawning (revive may mitigate death penalty and preserve location).
 - **Priority**: `must`
 
 ### R4 — State Recovery After Reload
 
 - **Description**: The bot must recover enough state after browser reload or code reset to avoid losing all context.
 - **Why**: The browser-native CODE environment is reset-prone; losing all state on reload makes the bot fragile.
-- **Baseline**: Persist and recover high-level state, core configuration, and coordination data across reloads.
+- **Baseline**: Persist and recover high-level state, core configuration, and coordination data across reloads. Dev/production flag controls whether the system reads persisted state on boot (false = cold start, true = attempt recovery). Persistence writing always happens regardless of flag. Persist on major state changes and every 5 minutes. The stateless-tick design provides implicit recovery for most systems; the main gap is multi-step merchant workflows where step progress would be lost without explicit persistence.
 - **Priority**: `must`
 
 ## State Awareness
@@ -157,3 +157,21 @@
 - **Why**: The bot is also a learning platform; rapid experimentation matters.
 - **Baseline**: Configurable thresholds and policy hooks that can be adjusted without modifying system logic.
 - **Priority**: `should`
+
+## Party Movement
+
+### R51 — Party Travel Sync
+
+- **Description**: The bot must coordinate party movement to shared destinations at matched speed.
+- **Why**: Aggressive monster packs attack without provocation. A lone character arriving first faces the full threat alone, invalidating party survival calculations. PvP zones carry the same risk. Independent travel with "regroup at destination" is insufficient.
+- **Baseline**: When traveling as a group, set movement speed to slowest present party member. Characters travel together to the shared destination. Reset speed to full when near destination. Merchant stand must close before any movement including travel sync.
+- **Priority**: `must`
+
+## Follow
+
+### R60 — Follow Objective
+
+- **Description**: Bots should be able to follow and support a user-controlled character.
+- **Why**: Enables mixed play where one character is manually controlled while other bots provide automated support (healing, buffs, attacking leader's target).
+- **Baseline**: User-controlled character designated as leader via CM. Bots maintain proximity to leader, attack leader's target, and provide class-appropriate support. Distinct from R51 (party travel sync is bot-to-bot coordinated travel to a destination; follow is continuous real-time tracking of a player-controlled character).
+- **Priority**: `later`

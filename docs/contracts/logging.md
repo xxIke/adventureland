@@ -1,3 +1,21 @@
+---
+system: Logging
+writes: nothing
+reads:
+  ctx.world: []
+  ctx.objective: []
+  ctx.targeting: []
+  ctx.config: []
+  ctx.scheduler:
+    - getStats()
+game_globals:
+  - character
+  - game_log()
+  - set_message()
+external:
+  - localStorage
+---
+
 # Logging Contract
 
 ## Identity

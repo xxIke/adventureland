@@ -18,7 +18,7 @@ Covers party formation, cross-character communication, status coordination, and 
 - **MVP**: on_party_request handler accepts if sender is in roster or friendly.
 - **End-state**: Also handle party invites to join merchant-formed multi-player party (post-MVP).
 - **Notes**: Game uses different functions for invites vs requests. Invites ("hey you, join me") use accept_party_invite(). Requests ("I'd like to join you") use accept_party_request(). These are distinct API calls.
-- **Multi-player**: Post-MVP. MVP is strictly single-player (4 characters: paladin, ranger, priest, merchant).
+- **Multi-player**: Post-MVP. MVP is single-player (default party: paladin, ranger, priest, merchant). The MVP system accepts rotation with all character classes — any class can be swapped in. MVP skill priorities are authored for the 4 default classes; other classes (warrior, mage, rogue) are supported with no-op skill strategies.
 
 ## CM Message Sending
 

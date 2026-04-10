@@ -34,21 +34,21 @@ All contracts reference [game-api.md](../game-api.md) for game function semantic
 
 ## Contract Files
 
-| File | System | Phase | Status |
-|------|--------|-------|--------|
-| `scheduler.md` | Scheduler | Phase 0 | Authored |
-| `event-bus.md` | Event Bus | Phase 0 | Revised |
-| `world-model.md` | WorldModel | Phase 1 | Authored |
-| `configuration.md` | Configuration | Phase 1 | Authored |
-| `logging.md` | Logging | Phase 1 | Authored |
-| `targeting.md` | Targeting | Phase 2 | Authored |
-| `attack.md` | Attack | Phase 2 | Authored |
-| `combat-skills.md` | Combat Skills | Phase 2 | Authored |
-| `potion-regen.md` | Potion/Regen | Phase 2 | Revised |
-| `movement.md` | Movement | Phase 2 | Revised |
-| `objective.md` | Objective | Phase 3 | Authored |
-| `party.md` | Party | Phase 3 | Authored |
-| `merchant-skills.md` | Merchant Skills | Phase 4 | Planned |
+| File | System | Phase | Status | Key Requirements |
+|------|--------|-------|--------|-----------------|
+| `scheduler.md` | Scheduler | Phase 0 | Authored | R1, R2, R47 |
+| `event-bus.md` | Event Bus | Phase 0 | Revised | R8 |
+| `world-model.md` | WorldModel | Phase 1 | Revised | R5, R6, R14 |
+| `configuration.md` | Configuration | Phase 1 | Revised | R4, R19, R20, R23, R48 |
+| `logging.md` | Logging | Phase 1 | Authored | R17, R18, R44, R45 |
+| `targeting.md` | Targeting | Phase 2 | Revised | R11, R12, R14, R37 |
+| `attack.md` | Attack | Phase 2 | Authored | R12 |
+| `combat-skills.md` | Combat Skills | Phase 2 | Revised | R40, R41 |
+| `potion-regen.md` | Potion/Regen | Phase 2 | Revised | R13 |
+| `movement.md` | Movement | Phase 2 | Revised | R9, R10, R51, R52 |
+| `objective.md` | Objective | Phase 3 | Revised | R15, R16, R21-R31, R37, R51-R58 |
+| `party.md` | Party | Phase 3 | Revised | R7, R8, R51, R55 |
+| `merchant-skills.md` | Merchant Skills | Phase 4 | Planned | R12 |
 
 ### Retired Contracts
 
