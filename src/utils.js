@@ -214,109 +214,92 @@ export function getUnitVectorFrom(point) {
 
 /**
  * Diminishing-returns damage reduction from armor or resistance.
- * Each 100 points gives 10% reduction with 0.9x multiplier per successive 100.
- * Partial last block is proportional.
+ * Post-MVP: requires per-target calculation with verified server formulas.
+ * Kept as dormant code for future target-dependent DPS system.
  * @param {number} value - armor or resistance value
  * @returns {number} fraction of damage reduced (0 to <1)
  */
-function damageReduction(value) {
-  let reduction = 0;
-  let dropoff = 1;
-  let remaining = value;
-  while (remaining > 0) {
-    if (remaining >= 100) {
-      reduction += 0.1 * dropoff;
-    } else {
-      reduction += (remaining / 1000) * dropoff;
-    }
-    remaining -= 100;
-    dropoff *= 0.9;
+// function damageReduction(value) {
+//   let reduction = 0;
+//   let dropoff = 1;
+//   let remaining = value;
+//   while (remaining > 0) {
+//     if (remaining >= 100) {
+//       reduction += 0.1 * dropoff;
+//     } else {
+//       reduction += (remaining / 1000) * dropoff;
+//     }
+//     remaining -= 100;
+//     dropoff *= 0.9;
+//   }
+//   return reduction;
+// }
+
+/**
+ * Estimate combined DPS for a list of entities using basic attack * frequency.
+ * MVP: no target-dependent calculations (armor, resistance, damage type).
+ * @param {object[]} entities - array of entities with {attack, frequency}
+ * @returns {{ basic_dps: number }} estimated DPS object (extensible for future fields)
+ */
+export function estimateDPS(entities) {
+  let total = 0;
+  for (const e of entities) {
+    if (!e) continue;
+    total += (e.attack || 0) * (e.frequency || 1);
   }
-  return reduction;
+  return { basic_dps: total };
 }
 
 /**
- * Estimate damage per second for an attacker, factoring damage type and target armor/resistance.
- * Uses attack * frequency * damage_mult * hit_rate formula.
- * @param {object} attacker - entity or G.monsters entry with {attack, frequency, damage_type}
- * @param {object} [target] - entity with {armor, resistance} for damage reduction calc
- * @returns {number} estimated DPS
+ * Estimate time to kill a target entity given an estimated DPS.
+ * @param {object} target - entity with {max_hp} (or G.monsters entry with {hp} as max_hp)
+ * @param {{ basic_dps: number }} estimatedDPS - DPS estimate from estimateDPS()
+ * @returns {{ basic_ttk: number }} estimated TTK in milliseconds (extensible for future fields)
  */
-export function estimateDPS(attacker, target) {
-  let damageMult = 1;
-  let hitRate = 1;
-
-  let damageType = null;
-  if (attacker.slots && attacker.slots.mainhand) {
-    damageType = G.items[attacker.slots.mainhand.name].damage_type;
-  } else if (attacker.damage_type) {
-    damageType = attacker.damage_type;
-  }
-
-  if (target && damageType) {
-    if (damageType === 'physical') {
-      damageMult *= 1 - damageReduction(target.armor || 0);
-      if (target.evasion) hitRate -= target.evasion / 100;
-    } else if (damageType === 'magical') {
-      damageMult *= 1 - damageReduction(target.resistance || 0);
-    }
-  }
-
-  return (attacker.attack || 0) * (attacker.frequency || 1) * damageMult * hitRate;
-}
-
-/**
- * Estimate time to kill a monster type at level 1 stats using party DPS.
- * @param {string} monsterType - monster type key for G.monsters lookup
- * @param {number} partyDPS - combined party DPS from estimateDPS
- * @returns {number} estimated milliseconds to kill
- */
-export function estimateTTK(monsterType, partyDPS) {
-  if (partyDPS <= 0) return Infinity;
-  const monster = G.monsters[monsterType];
-  if (!monster) return Infinity;
-  return (monster.hp / partyDPS) * 1000;
+export function estimateTTK(target, estimatedDPS) {
+  if (!target || !estimatedDPS || estimatedDPS.basic_dps <= 0) return { basic_ttk: Infinity };
+  const hp = target.max_hp || target.hp || 0;
+  if (hp <= 0) return { basic_ttk: 0 };
+  return { basic_ttk: (hp / estimatedDPS.basic_dps) * 1000 };
 }
 
 /**
  * MVP farmability boolean — can the party survive and kill this monster type.
- * Simple comparison: can party sustain against monster DPS and kill within reasonable time.
- * @param {string} monsterType - monster type key
- * @param {object} partyStats - { basic_dps, tank, ... } from al_bot:party:stats
+ * Uses basic_dps consistently on both sides (no target-dependent reduction).
+ * @param {string} monsterType - monster type key for G.monsters lookup
+ * @param {{ basic_dps: number }} partyEstimatedDPS - party DPS from estimateDPS()
  * @returns {boolean} true if party is projected to win
  */
-export function canFight(monsterType, partyStats) {
+export function canFight(monsterType, partyEstimatedDPS) {
   const monster = G.monsters[monsterType];
   if (!monster) return false;
-  if (!partyStats || !partyStats.basic_dps || partyStats.basic_dps <= 0) return false;
+  if (!partyEstimatedDPS || partyEstimatedDPS.basic_dps <= 0) return false;
 
-  const ttk = estimateTTK(monsterType, partyStats.basic_dps);
-  if (ttk === Infinity) return false;
+  const ttk = estimateTTK(monster, partyEstimatedDPS);
+  if (ttk.basic_ttk === Infinity) return false;
 
-  const monsterDPS = estimateDPS(monster);
+  const monsterDPS = estimateDPS([monster]);
   const maxTTK = 30000;
-  const maxMonsterDPS = partyStats.basic_dps * 0.5;
+  const maxMonsterDPS = partyEstimatedDPS.basic_dps * 0.5;
 
-  return ttk <= maxTTK && monsterDPS <= maxMonsterDPS;
+  return ttk.basic_ttk <= maxTTK && monsterDPS.basic_dps <= maxMonsterDPS;
 }
 
 /**
- * Calculate farmability data for a monster type. MVP returns data for future decision-making,
- * NOT comparative ROI. Each value calculated by dedicated functions for independent tuning.
+ * Calculate farmability data for a monster type. Returns data for decision-making.
  * @param {string} monsterType - monster type key
- * @param {object} partyStats - party stats from localStorage
+ * @param {{ basic_dps: number }} partyEstimatedDPS - party DPS from estimateDPS()
  * @returns {object} { can_fight: boolean, gold_gain: number, xp_gain: number }
- *                   gold_gain = gold(lvl1) / ttk(lvl1), xp_gain = xp(lvl1) / ttk(lvl1)
  */
-export function getFarmabilityData(monsterType, partyStats) {
-  const fight = canFight(monsterType, partyStats);
+export function getFarmabilityData(monsterType, partyEstimatedDPS) {
+  const fight = canFight(monsterType, partyEstimatedDPS);
   const monster = G.monsters[monsterType];
 
-  if (!fight || !monster || !partyStats || partyStats.basic_dps <= 0) {
+  if (!fight || !monster || !partyEstimatedDPS || partyEstimatedDPS.basic_dps <= 0) {
     return { can_fight: false, gold_gain: 0, xp_gain: 0 };
   }
 
-  const ttk = estimateTTK(monsterType, partyStats.basic_dps);
+  const ttk = estimateTTK(monster, partyEstimatedDPS);
 
   let goldPerKill = 0;
   if (G.base_gold && G.base_gold[monsterType]) {
@@ -327,8 +310,8 @@ export function getFarmabilityData(monsterType, partyStats) {
 
   return {
     can_fight: true,
-    gold_gain: ttk > 0 ? goldPerKill / ttk : 0,
-    xp_gain: ttk > 0 ? (monster.xp || 0) / ttk : 0,
+    gold_gain: ttk.basic_ttk > 0 ? goldPerKill / ttk.basic_ttk : 0,
+    xp_gain: ttk.basic_ttk > 0 ? (monster.xp || 0) / ttk.basic_ttk : 0,
   };
 }
 
@@ -393,14 +376,49 @@ export function getCooldownRemaining(skillName) {
 // ---------------------------------------------------------------------------
 
 /**
- * Check if an entity belongs to a friendly player (same owner or in friendlyPlayers config).
- * @param {object} entity - entity to check, must have entity.owner
- * @returns {boolean} true if entity is owned by a friendly player
+ * Check if an entity is friendly — consolidated check covering owner, party, friends,
+ * config.friendlyPlayers, and roster membership.
+ * @param {object} entity - entity to check (needs .owner, .party, .name)
+ * @param {object} ctx - shared context with config
+ * @returns {boolean} true if entity is friendly
  */
-export function isFriendly(entity) {
+export function isFriendly(entity, ctx) {
   if (entity.owner === character.owner) return true;
-  if (entity.party && entity.party === character.party) return true;
-  if (character.friends && character.friends.includes(entity.owner)) return true;
+  if (entity.party && character.party && entity.party === character.party) return true;
+  if (character.friends?.includes(entity.owner)) return true;
+  if (ctx?.config?.friendlyPlayers?.includes(entity.owner)) return true;
+  if (ctx?.config?.roster?.available?.includes(entity.name)) return true;
+  return false;
+}
+
+/**
+ * Check if a character name belongs to a friendly player — for name-based checks
+ * where no entity reference is available (CM senders, party invite/request names).
+ * @param {string} name - character name to check
+ * @param {object} ctx - shared context with config
+ * @returns {boolean} true if name belongs to a friendly player
+ */
+export function isFriendlyName(name, ctx) {
+  const roster = ctx?.config?.roster;
+  if (roster?.available) {
+    for (const c of roster.available) {
+      if (typeof c === 'string' && c === name) return true;
+      if (c && c.name === name) return true;
+    }
+  }
+  const friends = ctx?.config?.friendlyPlayers || [];
+  if (friends.length > 0) {
+    for (const id in parent.entities) {
+      const e = parent.entities[id];
+      if (e && e.name === name && e.owner && friends.includes(e.owner)) return true;
+    }
+  }
+  if (character.friends) {
+    for (const id in parent.entities) {
+      const e = parent.entities[id];
+      if (e && e.name === name && character.friends.includes(e.owner)) return true;
+    }
+  }
   return false;
 }
 
@@ -421,80 +439,149 @@ export function getActiveCharacters(roster) {
 }
 
 // ---------------------------------------------------------------------------
-//  Bank Operations (Phase 4 — signatures only)
+//  Bank Operations
 // ---------------------------------------------------------------------------
 
 /**
- * Deposit non-whitelisted items into bank.
+ * Deposit non-whitelisted items into bank. Must be at bank NPC.
  * @param {string[]} whitelist - item names to keep in inventory
+ * @returns {Promise<number>} number of items deposited
  */
-export function depositItems(whitelist) {
-  throw new Error('Phase 4: not yet implemented');
+export async function depositItems(whitelist) {
+  const keep = new Set(whitelist || []);
+  let deposited = 0;
+  for (let i = 0; i < character.items.length; i++) {
+    const item = character.items[i];
+    if (item && !keep.has(item.name)) {
+      try {
+        await bank_store(i);
+        deposited++;
+      } catch (e) {
+        // Slot may already be full or item locked — continue
+      }
+    }
+  }
+  return deposited;
 }
 
 /**
  * Retrieve specific items from bank vaults.
- * @param {string} itemName
- * @param {number} count
+ * @param {string} itemName - item name to retrieve
+ * @param {number} count - number of items to retrieve
+ * @returns {Promise<number>} number of items retrieved
  */
-export function retrieveItem(itemName, count) {
-  throw new Error('Phase 4: not yet implemented');
+export async function retrieveItem(itemName, count) {
+  let retrieved = 0;
+  if (!character.bank || count <= 0) return retrieved;
+  for (const pack in character.bank) {
+    const vault = character.bank[pack];
+    if (!Array.isArray(vault)) continue;
+    for (let slot = 0; slot < vault.length; slot++) {
+      if (retrieved >= count) return retrieved;
+      const item = vault[slot];
+      if (item && item.name === itemName) {
+        try {
+          await bank_retrieve(pack, slot);
+          retrieved += item.q || 1;
+        } catch (e) {
+          // Inventory full or item locked — stop
+          return retrieved;
+        }
+      }
+    }
+  }
+  return retrieved;
 }
 
 /**
  * Deposit excess gold and non-whitelisted items during bank visit.
- * @param {number} goldThreshold
- * @param {string[]} whitelist
+ * @param {number} goldThreshold - gold amount to keep on hand
+ * @param {string[]} whitelist - item names to keep in inventory
+ * @returns {Promise<void>}
  */
-export function depositJunk(goldThreshold, whitelist) {
-  throw new Error('Phase 4: not yet implemented');
+export async function depositJunk(goldThreshold, whitelist) {
+  if (character.gold > goldThreshold) {
+    try {
+      bank_deposit(character.gold - goldThreshold);
+    } catch (e) {
+      // Gold deposit failed — continue with items
+    }
+  }
+  await depositItems(whitelist);
 }
 
 // ---------------------------------------------------------------------------
-//  NPC/Vendor Utilities (Phase 4 — signatures only)
+//  NPC/Vendor Utilities
 // ---------------------------------------------------------------------------
 
 /**
  * Purchase item from nearby NPC vendor.
- * @param {string} itemName
- * @param {number} quantity
+ * @param {string} itemName - item name to buy
+ * @param {number} [quantity=1] - quantity to purchase
+ * @returns {Promise<void>}
  */
-export function buyItem(itemName, quantity) {
-  throw new Error('Phase 4: not yet implemented');
+export async function buyItem(itemName, quantity) {
+  await buy(itemName, quantity || 1);
 }
 
 /**
  * Sell item to nearby NPC vendor (Ponty).
- * @param {number} slot
- * @param {number} [quantity]
+ * @param {number} slot - inventory slot index
+ * @param {number} [quantity] - quantity to sell (omit for entire stack/item)
  */
 export function sellItem(slot, quantity) {
-  throw new Error('Phase 4: not yet implemented');
+  sell(slot, quantity);
 }
 
 /**
  * Identify inventory items that should be sold to NPC.
- * @param {string[]} keepList
+ * Returns slot indices of sellable items (not in keepList, not quest items).
+ * @param {string[]} keepList - item names to keep
+ * @returns {number[]} array of inventory slot indices
  */
 export function findSellableItems(keepList) {
-  throw new Error('Phase 4: not yet implemented');
+  const keep = new Set(keepList || []);
+  const sellable = [];
+  for (let i = 0; i < character.items.length; i++) {
+    const item = character.items[i];
+    if (!item) continue;
+    if (keep.has(item.name)) continue;
+    const gItem = G.items[item.name];
+    if (gItem?.quest) continue;
+    if (gItem?.e) continue; // event items
+    sellable.push(i);
+  }
+  return sellable;
 }
 
 // ---------------------------------------------------------------------------
-//  Gold Management Utilities (Phase 4 — signatures only)
+//  Gold Management Utilities
 // ---------------------------------------------------------------------------
+
+const GOLD_BASELINE_KEY = 'al_bot:merchant:goldBaseline';
 
 /**
  * Read current gold baseline target from localStorage.
+ * @returns {number|null} gold baseline, or null if not set
  */
 export function getGoldBaseline() {
-  throw new Error('Phase 4: not yet implemented');
+  try {
+    const raw = localStorage.getItem(GOLD_BASELINE_KEY);
+    if (raw === null) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
 }
 
 /**
  * Write updated gold baseline to localStorage.
- * @param {number} newTarget
+ * @param {number} newTarget - new gold baseline value
  */
 export function updateGoldBaseline(newTarget) {
-  throw new Error('Phase 4: not yet implemented');
+  try {
+    localStorage.setItem(GOLD_BASELINE_KEY, JSON.stringify(newTarget));
+  } catch (e) {
+    // localStorage write failed — non-critical
+  }
 }

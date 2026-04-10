@@ -8,30 +8,36 @@
  * localStorage (al_bot:party:stats); all characters read from there.
  */
 
-import { countItem } from './utils.js';
+import { countItem, isFriendlyName, isUpgrade } from './utils.js';
 
 /** Scores a party member's suitability as tank based on survivability stats. */
 function calculateTankScore(member) {
   return (member.max_hp || 0) + (member.armor || 0) + (member.resistance || 0);
 }
 
-/** Checks if a character name belongs to the roster or a friend's account. */
-function isFriendly(name, ctx) {
-  const roster = ctx.config.roster;
-  if (!roster) return false;
-
-  for (const c of roster.available) {
-    if (typeof c === 'string' && c === name) return true;
-    if (c && c.name === name) return true;
+/** Checks merchant item catalogue for gear upgrades this character could use. */
+function getGearRequests() {
+  try {
+    const raw = localStorage.getItem('al_bot:merchant:catalogue');
+    if (!raw) return [];
+    const catalogue = JSON.parse(raw);
+    const requests = [];
+    for (const itemName in catalogue) {
+      const entry = catalogue[itemName];
+      if (typeof entry !== 'object' || !entry.max) continue;
+      // Check each equipment slot for upgrade opportunity
+      for (const slotName in character.slots) {
+        const equipped = character.slots[slotName];
+        if (!equipped) continue;
+        if (equipped.name === itemName && isUpgrade({ name: itemName, level: entry.max }, equipped)) {
+          requests.push({ slot: slotName, itemName, level: entry.max });
+        }
+      }
+    }
+    return requests;
+  } catch (e) {
+    return [];
   }
-
-  const friends = ctx.config.friendlyPlayers || [];
-  for (const id in parent.entities) {
-    const e = parent.entities[id];
-    if (e && e.name === name && e.owner && friends.includes(e.owner)) return true;
-  }
-
-  return false;
 }
 
 /**
@@ -68,6 +74,7 @@ export function createParty(ctx) {
     let bestScore = calculateTankScore(character);
 
     for (const member of members) {
+      if (!member) continue;
       const score = calculateTankScore(member);
       if (score > bestScore) {
         bestScore = score;
@@ -134,6 +141,40 @@ export function createParty(ctx) {
     } catch (e) {
       ctx.logger.warn('party', `Failed to write party stats: ${e.message}`);
     }
+
+    // Travel sync: detect if any party member is traveling and find slowest speed
+    let anyTraveling = false;
+    let slowestSpeed = Infinity;
+    let travelDest = null;
+    for (const name of roster.active) {
+      try {
+        const raw = localStorage.getItem(`${STATUS_KEY_PREFIX}${name}:status`);
+        if (!raw) continue;
+        const snap = JSON.parse(raw);
+        if (!snap || !snap.alive || Date.now() - snap.lastUpdated > 30000) continue;
+        if (snap.objective === 'travel') {
+          anyTraveling = true;
+          if (snap.target) travelDest = snap.target;
+        }
+        if (snap.speed && snap.speed < slowestSpeed) {
+          slowestSpeed = snap.speed;
+        }
+      } catch (e) { /* skip */ }
+    }
+    // Also include own speed
+    if (character.speed && character.speed < slowestSpeed) {
+      slowestSpeed = character.speed;
+    }
+
+    const travelSync = anyTraveling && slowestSpeed < Infinity
+      ? { destination: travelDest, slowestSpeed, active: true, lastUpdated: Date.now() }
+      : { destination: null, slowestSpeed: null, active: false, lastUpdated: Date.now() };
+
+    try {
+      localStorage.setItem('al_bot:party:travel', JSON.stringify(travelSync));
+    } catch (e) {
+      ctx.logger.debug('party', `Failed to write travel sync: ${e.message}`);
+    }
   }
 
   function updatePartyContext() {
@@ -145,13 +186,28 @@ export function createParty(ctx) {
       // Fallback: local tank calculation when no merchant stats available
       updateTankLocal();
     }
+
+    // Read travel sync from localStorage
+    try {
+      const raw = localStorage.getItem('al_bot:party:travel');
+      if (raw) {
+        const sync = JSON.parse(raw);
+        if (sync && sync.lastUpdated && Date.now() - sync.lastUpdated < 30000) {
+          ctx.party.travelSync = sync;
+        } else {
+          ctx.party.travelSync = { destination: null, slowestSpeed: null, active: false };
+        }
+      }
+    } catch (e) {
+      // Keep existing travelSync on parse failure
+    }
   }
 
   function assembleParty() {
     const roster = ctx.config.roster;
     if (!roster) return;
 
-    const currentParty = get_party();
+    const currentParty = get_party() || {};
 
     for (const name of roster.active) {
       if (name === character.name) continue;
@@ -219,6 +275,7 @@ export function createParty(ctx) {
       frequency: character.frequency,
       armor: character.armor,
       resistance: character.resistance,
+      speed: character.speed,
       objective: ctx.objective?.type || 'idle',
       target: ctx.objective?.target || null,
       alive: !character.rip,
@@ -226,6 +283,7 @@ export function createParty(ctx) {
       emptySlots,
       gold: character.gold,
       needsResupply: potionLow || emptySlots < character.items.length * 0.5,
+      gearRequests: getGearRequests(),
       lastUpdated: now,
     };
 
@@ -240,7 +298,7 @@ export function createParty(ctx) {
   }
 
   function handleCM(sender, data) {
-    if (!isFriendly(sender, ctx)) {
+    if (!isFriendlyName(sender, ctx)) {
       ctx.logger.warn('party', `CM from unknown sender: ${sender}`);
       return;
     }
@@ -256,6 +314,16 @@ export function createParty(ctx) {
         break;
       case 'objective-directive':
         ctx.logger.info('party', `objective-directive from ${sender}: ${JSON.stringify(data.data)}`);
+        if (data.data?.farmTarget !== undefined) {
+          try {
+            localStorage.setItem('al_bot:config:farmTarget', JSON.stringify(data.data.farmTarget));
+            ctx.config.reload();
+            ctx.bus.emit('config:farm-target-changed', data.data);
+            ctx.logger.info('party', `farmTarget updated to ${data.data.farmTarget}`);
+          } catch (e) {
+            ctx.logger.error('party', `Failed to apply objective-directive: ${e.message}`);
+          }
+        }
         break;
       case 'status-request':
         publishStatus();
@@ -269,16 +337,24 @@ export function createParty(ctx) {
   }
 
   function handlePartyInvite(name) {
-    if (isFriendly(name, ctx)) {
+    if (isFriendlyName(name, ctx)) {
       accept_party_invite(name);
       ctx.logger.info('party', `accepted invite from ${name}`);
       updatePartyContext();
     }
   }
 
+  function handlePartyRequest(name) {
+    if (isFriendlyName(name, ctx)) {
+      accept_party_request(name);
+      ctx.logger.info('party', `accepted request from ${name}`);
+      updatePartyContext();
+    }
+  }
+
   on_cm = handleCM;
   on_party_invite = handlePartyInvite;
-  on_party_request = handlePartyInvite;
+  on_party_request = handlePartyRequest;
 
   let lastMemberCount = 0;
 

@@ -8,6 +8,8 @@
  * or special monsters appear.
  */
 
+import { isFriendly } from './utils.js';
+
 /**
  * Creates the world model system that populates `ctx.world` each tick.
  *
@@ -21,14 +23,6 @@
 export function createWorldModel(ctx) {
   let previousHostilePlayers = [];
   let previousSpecialMonsters = [];
-
-  function isFriendly(entity) {
-    if (entity.owner === character.owner) return true;
-    if (entity.party && entity.party === character.party) return true;
-    const friendlyPlayers = ctx.config.friendlyPlayers || [];
-    if (friendlyPlayers.includes(entity.owner)) return true;
-    return false;
-  }
 
   function tick() {
     const specialMonsters = [];
@@ -56,7 +50,7 @@ export function createWorldModel(ctx) {
         }
 
         if (e.type === 'character') {
-          if (isFriendly(e) && e.party === character.party) {
+          if (isFriendly(e, ctx) && character.party && e.party === character.party) {
             partyMembers.push(e);
           } else if (e.target) {
             potentialHostilePlayers.push(e);
@@ -86,7 +80,7 @@ export function createWorldModel(ctx) {
             targetMonsters.push(e);
           }
 
-          if (e.hp < character.attack * 0.8) {
+          if (e.max_hp < character.attack * 0.8) {
             easyMonsters.push(e);
           }
         }

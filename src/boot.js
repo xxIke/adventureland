@@ -22,7 +22,7 @@ import { createAttack } from './attack.js';
 import { createCombatSkills, createNoOpSkillStrategy, createPriestSkillStrategy, createPaladinSkillStrategy } from './combat-skills.js';
 import { createPotionRegen } from './potion-regen.js';
 import { createMovement, createSmartMoveStrategy } from './movement.js';
-import { createObjective, createHunterStrategy } from './objective.js';
+import { createObjective, createHunterStrategy, createMerchantStrategy } from './objective.js';
 import { createParty } from './party.js';
 
 const bus = createEventBus();
@@ -47,7 +47,7 @@ const isMerchant = ctx.config.roster?.self?.isMerchant;
 const worldModel = createWorldModel(ctx);
 
 const objectiveStrategy = isMerchant
-  ? { name: 'merchant', evaluate() { return null; }, advanceStep() { return null; } }
+  ? createMerchantStrategy()
   : createHunterStrategy();
 const objective = createObjective(ctx, objectiveStrategy);
 const party = createParty(ctx);
@@ -100,6 +100,12 @@ if (!isMerchant) {
 scheduler.register('potion-regen', potionRegen.tick, { interval: 150 });
 scheduler.register('movement', movement.tick, { interval: 250 });
 scheduler.register('logging', logger.tick, { interval: 5000 });
+
+// Initial synchronous population — ctx writers run first so readers see real data on first tick
+worldModel.tick();
+objective.tick();
+party.tick();
+targeting.tick();
 
 scheduler.start();
 logger.info('boot', `Started — ${Object.keys(scheduler.getStats()).length} systems registered`);

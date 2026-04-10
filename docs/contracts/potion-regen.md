@@ -10,6 +10,7 @@ game_globals:
   - parent.next_skill
   - use_skill()
   - swap()
+  - G.items
 ---
 
 # Potion/Regen Contract
@@ -24,7 +25,7 @@ The Potion/Regen system manages HP and MP recovery through deliberate potion tie
 
 - `ctx.world` — reads `hostileMonsters`, `hostilePlayers` for combat context
 - `ctx.logger` — logs recovery actions and errors
-- Game globals: `character`, `parent.next_skill`, `use_skill()`, `swap()`
+- Game globals: `character`, `parent.next_skill`, `use_skill()`, `swap()`, `G.items`
 
 **Does NOT read** `ctx.targeting` or any combat system reference. Combat context is determined from game state signals directly (`character.targets`, `ctx.world` hostile lists). This ensures the system works for all character types including merchant.
 
@@ -80,32 +81,35 @@ This approach:
 
 | Context | Recovery Strategy |
 |---------|-------------------|
-| **Not under pressure** (idle, traveling, no hostiles nearby) | Always use regen, even if missing a large chunk. No urgency — regen recovers over time at zero gold cost. |
-| **Under pressure** (being targeted or hostiles nearby) | Use potions when missing significant HP/MP. Potion tier selected by missing amount for economy. |
+| **Not under pressure** (idle, traveling, no hostiles nearby) | Always use regen when missing ≥ regen amount. No urgency — regen recovers at zero gold cost. |
+| **Under pressure** (being targeted or hostiles nearby) | Use potions when missing amount ≥ a potion's restoration value. Otherwise regen. |
 
 ### Potion Tier Selection
 
-When under pressure and the missing amount warrants a potion:
+Potion restoration values are derived from `G.items[potionName].gives[0][1]` — not hardcoded. The selection algorithm picks the **largest potion whose restoration value ≤ missing amount**, maximizing recovery per cooldown without wasting value.
 
-| Missing HP | Potion Tier |
-|------------|------------|
-| > 10000 | `hpotx` |
-| > 800 | `hpot1` |
-| > 400 | `hpot0` |
-| <= 400 | `regen_hp` (small amounts don't justify gold even under pressure) |
+Example: missing 350 HP → skips hpotx (10000 > 350), skips hpot1 (400 > 350), selects hpot0 (200 ≤ 350).
 
-| Missing MP | Potion Tier |
-|------------|------------|
-| > 10000 | `mpotx` |
-| > 1000 | `mpot1` |
-| > 500 | `mpot0` |
-| <= 500 | `regen_mp` |
+If no potion's restoration value fits within the deficit, regen is used instead.
 
-These thresholds are aligned with the v2 implementation.
+### Regen Effectiveness Gate
+
+Regen only fires when the deficit ≥ the regen restoration amount (50 HP / 100 MP). This prevents wasting a 4-second cooldown on trivial recovery that would leave the character unresponsive to changing combat conditions.
 
 ### Decision Priority
 
-HP always takes priority over MP at the same urgency tier (survival-critical). Within a resource type, potions take priority over regen when warranted by context and missing amount.
+Priority between HP and MP is determined by **missing percentage** (`missing / max`). The resource with a higher percentage missing gets priority. When tied, **MP wins** — MP is required for all actions including basic attacks.
+
+### Per-Resource Action Resolution
+
+For each resource (HP and MP independently):
+
+| Condition | Action |
+|-----------|--------|
+| `missing < regenAmount` | Skip — deficit too small for any recovery |
+| `missing ≥ regenAmount`, no potion fits | Regen — deficit is real but below smallest potion value |
+| Potion fits, not under pressure | Regen — save gold, no urgency |
+| Potion fits, under pressure | Use that potion — fast recovery needed |
 
 ## Potion Inventory Management
 
@@ -120,15 +124,15 @@ Since `use_skill('use_hp')` consumes the **last** HP potion in `character.items[
 ## Tick Sequence
 
 1. If `character.rip`, return `{ delay: 1000 }`.
-2. If recovery on cooldown (`Date.now() < parent.next_skill.use_hp`), return `{ delay: parent.next_skill.use_hp - Date.now() + 10 }` (schedule at cooldown expiry).
-3. If HP is full and MP is full, return `{ delay: 250 }` (short idle check).
-4. Determine combat context from `character.targets` and `ctx.world` hostile presence.
-5. Calculate `missingHp = character.max_hp - character.hp`.
-6. Calculate `missingMp = character.max_mp - character.mp`.
-7. **If not under pressure**: Use `regen_hp` if HP not full, else `regen_mp` if MP not full. HP first.
-8. **If under pressure**: Select potion tier from tables above based on missing amount. HP wins if both need recovery (survival-critical).
+2. If potion in-flight (async swap pending), return cooldown delay.
+3. If recovery on cooldown (`Date.now() < parent.next_skill.use_hp`), return cooldown delay.
+4. If HP is full and MP is full, return `{ delay: 250 }` (short idle check).
+5. Calculate `missingHp`, `missingMp`.
+6. Determine combat context from `character.targets` and `ctx.world` hostile presence.
+7. Resolve action for each resource via `resolveAction(missing, regenAmount, potionList, underPressure)`.
+8. If both resources need recovery, pick higher urgency (missing percentage). MP wins ties.
 9. **Execute**: If potion action, run inventory management (scan, swap if needed), then `use_skill('use_hp'/'use_mp')`. If regen action, call `use_skill('regen_hp'/'regen_mp')`.
-10. Return `{ delay: parent.next_skill.use_hp - Date.now() + 10 }` (schedule at next cooldown expiry).
+10. Return cooldown delay (schedule at next cooldown expiry).
 
 ## Context Dependencies
 
@@ -139,6 +143,8 @@ reads:
   ctx.world:
     - hostileMonsters   # combat context detection
     - hostilePlayers    # combat context detection
+  game_globals:
+    - G.items           # potion restoration values (lazy-init)
 ```
 
 ## Behavior Contracts
@@ -156,13 +162,13 @@ reads:
 - `character.rip` is false
 - Recovery cooldown is clear (`Date.now() >= parent.next_skill.use_hp`)
 - Character is under combat pressure (`character.targets > 0` or hostiles in world)
-- Missing HP or MP exceeds the minimum potion threshold (400 HP / 500 MP)
+- Missing amount ≥ the selected potion's restoration value (`G.items[potion].gives[0][1]`)
 
 ### Preconditions for Regen Use
 
 - `character.rip` is false
 - Recovery cooldown is clear
-- HP or MP is not at maximum
+- Missing amount ≥ regen restoration amount (50 HP / 100 MP)
 
 ### Error Handling
 
@@ -188,8 +194,10 @@ None. Reads game globals and `ctx.world` directly.
 | R13 (HP/MP recovery management) | Dedicated adaptive cycle with deliberate potion/regen selection |
 | R42 (explicit responsibilities) | System does one thing: manage recovery consumables. No combat, no targeting, no movement. |
 | R44 (no silent failures) | All errors caught and logged |
-| R48 (centralized thresholds) | Potion thresholds defined in contract; could be moved to config if tuning needed |
+| R48 (centralized thresholds) | Potion thresholds derived from G.items — no hardcoded magic numbers |
 
 ## Future Extensions
+
+**Party healer availability**: Growth point exists in `resolveAction()` for checking whether a party healer can cover the deficit. When implemented, the system would skip self-recovery for HP when a healer is available, preserving the shared cooldown for MP recovery or emergency situations.
 
 **Elixirs and consumable buffs**: End-state extension for managing persistent consumable buffs (elixirs) that provide stat boosts. Some may be always-on for certain characters, others situational. May compete for the same cooldown/scheduling as potions — needs verification. This would extend the recovery system's scope to include buff maintenance alongside HP/MP recovery.

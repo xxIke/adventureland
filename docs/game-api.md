@@ -182,7 +182,7 @@ CMs are real-time, per-character messages. Use for active coordination that need
 | `character.party` | Party name/id (`undefined`/`null` if not in party) |
 | `character.owner` | Account owner name |
 | `character.ctype` | Character class |
-| `character.friends` | Friends list — **structure needs verification** against live game |
+| `character.friends` | Friends list — array of owner IDs. Verified. |
 | `character.s` | Status effects/buffs object. Keys are condition names, values are condition state objects. |
 | `character.s.monsterhunt` | Active monster hunt state (when present): `{ id: string, c: number, ms: number }` — `id` is monster type to hunt, `c` is remaining kill count, `ms` is time remaining in milliseconds. |
 | `character.stand` | Boolean — whether merchant stand is currently open |
@@ -338,6 +338,7 @@ Growth formulas derived from server code (`server.js:level_monster`, `server.js:
 | `G.classes` | Character class stat tables |
 | `G.conditions` | Status effect definitions |
 | `G.drops` | Drop tables for monsters, maps |
+| `G.base_gold[monsterType]` | Gold per kill per map. E.g., `G.base_gold["goo"]` = `{ "old_main": 9, "dungeon0": 16, "main": 9 }` |
 | `G.geometry[mapName]` | Map visual boundaries, collision data |
 
 ## Item and Bank Functions
@@ -360,7 +361,7 @@ Growth formulas derived from server code (`server.js:level_monster`, `server.js:
 
 ## Unverified / Needs Testing
 
-- Exact structure of `character.friends` (flat array? object? keyed by name or owner?)
+- ~~Exact structure of `character.friends`~~ — Verified: array of owner IDs
 - Exact behavior of `smart_move()` cancellation — does `stop()` cause the promise to reject?
 - Exact party acceptance callback mechanism (socket events vs global handlers)
 - Whether `G.maps[mapName].ref` provides pre-resolved NPC positions for all maps

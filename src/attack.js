@@ -20,7 +20,7 @@ export function createAttack(ctx) {
 
       try {
         if (Object.keys(get_chests()).length > 0) loot();
-      } catch (e) { /* loot errors non-critical */ }
+      } catch (e) { ctx.logger.debug('attack', `loot error: ${e.message}`); }
 
       const at = ctx.targeting?.attackTarget;
       const ht = ctx.targeting?.healTarget;

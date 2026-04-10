@@ -219,10 +219,12 @@ Systems that write `ctx.*` slots must run before systems that read those slots:
 
 ```
 1. WorldModel     -> writes ctx.world
-2. Objective      -> writes ctx.objective (reads ctx.world)
-3. Targeting      -> writes ctx.targeting (reads ctx.world, ctx.objective)
-4. Party          -> writes ctx.party (reads ctx.world, ctx.config)
+2. Objective      -> writes ctx.objective (reads ctx.world, ctx.config)
+3. Party          -> writes ctx.party (reads ctx.world, ctx.config, localStorage)
+4. Targeting      -> writes ctx.targeting (reads ctx.world, ctx.objective, ctx.config)
 5. All others     -> read only (Attack, CombatSkills, Movement, PotionRegen, Logging)
 ```
 
-Party writes `ctx.party.tank` and `ctx.party.travelSync` which Movement reads for kite decisions and speed matching. Party **must** run before Movement in the scheduling order (hard data dependency). Other group 5 systems have no ordering dependency on each other.
+Party runs before Targeting because `ctx.party.tank` may be used for future aggro coordination, and `ctx.party.travelSync` is needed by Movement for speed matching. Boot.js performs synchronous initial ticks in this order before the scheduler starts async execution.
+
+**Eventual consistency**: Party stats (tank, basic_dps) require the merchant to read all characters' status snapshots from localStorage and calculate aggregates. This cannot happen in a single boot cycle — it requires all characters to be online, initialized, and publishing status snapshots. Systems reading `ctx.party.tank` or `ctx.party.basic_dps` must handle null/zero gracefully during the stabilization window.

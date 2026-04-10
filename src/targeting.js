@@ -178,6 +178,7 @@ export function createHealTargetingStrategy() {
       let bestMissing = 0;
 
       for (const member of partyMembers) {
+        if (!member) continue;
         const missing = member.max_hp - member.hp;
         if (missing <= 0) continue;
 

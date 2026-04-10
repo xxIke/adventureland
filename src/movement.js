@@ -178,7 +178,7 @@ export function createMovement(ctx, strategy) {
   const isMerchant = ctx.config.roster?.self?.isMerchant;
 
   function cancelTravel() {
-    try { stop(); } catch (e) { /* best effort */ }
+    try { stop(); } catch (e) { ctx.logger.debug('movement', `stop failed: ${e.message}`); }
     travelPromise = null;
   }
 
@@ -268,7 +268,7 @@ export function createMovement(ctx, strategy) {
         // Being targeted but can't find attacker — approach target
         const dist = distance(character, target);
         if (dist > character.range) {
-          try { strategy.approach(target); } catch (e) { /* best effort */ }
+          try { strategy.approach(target); } catch (e) { ctx.logger.debug('movement', `approach fallback failed: ${e.message}`); }
         }
       }
     } else {
@@ -299,7 +299,14 @@ export function createMovement(ctx, strategy) {
     ensureStandClosed();
 
     destination = coord;
-    ctx.logger.info('movement', `Traveling to ${JSON.stringify(coord)}`);
+
+    // Party travel sync: log speed constraint if active
+    const travelSync = ctx.party?.travelSync;
+    if (travelSync?.active && travelSync.slowestSpeed) {
+      ctx.logger.info('movement', `Traveling to ${JSON.stringify(coord)} (synced speed: ${travelSync.slowestSpeed})`);
+    } else {
+      ctx.logger.info('movement', `Traveling to ${JSON.stringify(coord)}`);
+    }
 
     travelPromise = strategy.travel(coord);
     travelPromise.then(() => {

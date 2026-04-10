@@ -22,18 +22,11 @@ export function createNoOpSkillStrategy() {
 }
 
 /**
- * Creates the combat skills system that delegates to the provided strategy each tick.
- *
- * @param {object} ctx - Shared context with `targeting`, `logger`
- * @param {object} strategy - Skill strategy with `useSkills(ctx)` method
- * @returns {{ tick: Function }}
- */
-/**
  * Creates a priest skill strategy that uses partyheal when 2+ party members
  * are below 80% HP.
- *
- * @returns {{ name: string, useSkills: Function }}
- */
+*
+* @returns {{ name: string, useSkills: Function }}
+*/
 export function createPriestSkillStrategy() {
   return {
     name: 'priest',
@@ -48,6 +41,7 @@ export function createPriestSkillStrategy() {
       const partyMembers = ctx.world?.partyMembers || [];
       let injured = 0;
       for (const m of partyMembers) {
+        if (!m) continue;
         if (m.hp < m.max_hp * 0.8) injured++;
       }
 
@@ -65,9 +59,9 @@ export function createPriestSkillStrategy() {
 
 /**
  * Creates a paladin skill strategy that uses selfheal when HP drops below 60%.
- *
- * @returns {{ name: string, useSkills: Function }}
- */
+*
+* @returns {{ name: string, useSkills: Function }}
+*/
 export function createPaladinSkillStrategy() {
   return {
     name: 'paladin',
@@ -91,6 +85,13 @@ export function createPaladinSkillStrategy() {
   };
 }
 
+/**
+ * Creates the combat skills system that delegates to the provided strategy each tick.
+ *
+ * @param {object} ctx - Shared context with `targeting`, `logger`
+ * @param {object} strategy - Skill strategy with `useSkills(ctx)` method
+ * @returns {{ tick: Function }}
+ */
 export function createCombatSkills(ctx, strategy) {
   function tick() {
     try {
