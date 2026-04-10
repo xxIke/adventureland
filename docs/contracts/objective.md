@@ -188,7 +188,7 @@ Hunters periodically read the merchant's item catalogue from localStorage (`al_b
 | `'deliver'` | Deliver gear improvements to hunters (R56). | Hunter location | `gather-items` -> `travel-to-hunter` -> `trade` -> `collect-old` |
 | `'hunt-eval'` | Evaluate hunter hunt viability (R37). | Hunt data | `read-hunts` -> `evaluate` -> `respond-cm` |
 | `'bank-ops'` | Foundational bank operations (R58). | Bank location | `travel-to-bank` -> `deposit-gold` -> `store-items` -> `retrieve-items` |
-| `'trade-fulfill'` | Fulfill own characters' trade-slot requests (R55). | Nearby character | `scan-trades` -> `fulfill` |
+| `'trade-fulfill'` | Stay near own character until trade fulfillment completes (R55). Trade system handles actual `trade_sell()`. | Nearby character | `wait-for-trades` |
 | `'wander'` | Visit predefined locations for economy tasks. | Route | Per-location steps |
 
 ### Transition Logic
@@ -205,7 +205,7 @@ Evaluated each tick from `'idle'`:
 
 ### Gold Baseline Management (R54)
 
-After each restock cycle, merchant checks gold against baseline target stored in localStorage (`al_bot:merchant:goldBaseline`). If not set, initialize to current total gold (bank + on merchant). Grow baseline by ~10% of gold retrieved from hunters. Lossy trade practices (R29) only operate with gold exceeding baseline.
+Gold baseline tracks hunting profit, not total gold. During restock, the merchant records gold before collecting from hunters (`collect-junk` step). After hunters send items/gold via the Trade system, the difference is hunting profit. 10% of this profit is added to the baseline stored in localStorage (`al_bot:merchant:goldBaseline`). If baseline not set, initialize to current total gold (bank + on merchant). Lossy trade practices (R29) only operate with gold exceeding baseline.
 
 ### Multi-Step Workflow Progression
 
@@ -214,11 +214,22 @@ Merchant objectives use `step` and `stepComplete` for multi-step workflows:
 1. Objective sets initial `step` (e.g., `'travel-to-bank'`).
 2. Other systems react to the step:
    - Movement sees `location` and travels there.
-   - When arrived, objective detects arrival (e.g., `nearLocation(bankLocation)`) and sets `stepComplete = true`.
-3. On next tick, `advanceStep()` progresses to next step (e.g., `'withdraw'`).
-4. Objective executes step-specific logic using utility functions (e.g., `depositJunk()`, `buyItem()`).
-5. When step completes, sets `stepComplete = true`. Cycle continues.
+3. Each tick, objective evaluates step completion via **state-verification guards** — checking real game state, not trusting async promises:
+   - Travel steps: `nearLocation(coord, 50)`
+   - `withdraw`: `countItem(potion) >= needed` for all deficit items
+   - `buy-potions`: `countItem(potion) >= needed` for all deficit items
+   - `deliver`: no more fulfillable buy requests in hunter's trade slots
+   - `collect-junk`: inventory changed (item count increased) OR timeout (~15s)
+   - `deposit`: character gold at/below threshold
+   - `sell-items`: `classifyForSale(character.items).length === 0`
+   - Synchronous steps (check-needs, check-baseline): complete immediately
+4. When guard passes, `stepComplete = true`. `advanceStep()` progresses to next step.
+5. Step-specific logic fires async operations (fire-and-forget). Guard re-checks each tick.
 6. After final step, transitions back to `'idle'`.
+
+**Sell approach**: Items are classified as for-sale explicitly using `classifyForSale()`. Only items positively identified as NPC-sellable are sold. The system does NOT use a sell-all-except-keepList approach.
+
+**Trade-slot fulfillment**: Hunters post buy requests in trade slots at 1g/item. Merchant sells to those requests via `trade_sell()`. Actual trade execution is handled by the Trade system; the objective manages workflow sequencing.
 
 ### `createMerchantObjectiveStrategy()`
 

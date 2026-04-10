@@ -183,6 +183,8 @@ on_cm = (sender, data) => { ... }
 
 Incoming CMs are validated (typed, from known sender) and routed. Invalid or unknown messages are logged and discarded.
 
+**Note**: CM shape and safe handling validated against previous implementations (hyper-fixate). Always check `is_friendly(sender)` before processing. Add `cm_from` context for routing.
+
 ## Tank Identification
 
 The party tank is the character best suited to absorb damage. Tank identity is recalculated whenever party membership changes (member joins or leaves).
@@ -210,6 +212,8 @@ Party stats (including tank) are calculated and assigned by the **merchant** cha
 
 **Why merchant**: Not all characters can see all party members in `parent.entities` (visibility range is limited). The merchant has full party context via localStorage status snapshots and is the best-positioned system for party composition awareness. Clear ownership: merchant is sole writer to `al_bot:party:stats`.
 
+**Why merchant**: The merchant is responsible for ensuring all intended hunters are online and for overall party cohesion. It is best suited to know who is intended to be online and can assess party composition once all intended hunters are online.
+
 ### Publishing
 
 The current tank and party stats are published to `ctx.party` so that other systems can reference them:
@@ -231,7 +235,7 @@ ctx.party = {
 }
 ```
 
-If the character is solo (no party), `tank` is `null` — the solo character is implicitly the tank (does not kite).
+If the character is solo (no party), `tank` is `null`. Solo melee characters do not kite (act as own tank). Solo ranged characters MUST kite — range determines kite behavior, not tank assignment.
 
 ---
 
@@ -242,25 +246,25 @@ When the party travels together, characters should synchronize movement.
 ### Speed Synchronization
 
 During group travel (`ctx.objective.type === 'travel'`):
-- Each character publishes their speed to localStorage.
-- Movement system reads the slowest party member's speed and limits its own travel speed to match.
-- Characters move through shared checkpoints rather than independently navigating.
+- Merchant publishes `slowestSpeed` as part of party stats evaluation (alongside tank and DPS).
+- Movement system reads `ctx.party.travelSync` and calls `cruise(slowestSpeed)` to cap travel speed.
+- Each character uses the movement system to coordinate travel independently. MVP uses `smart_move()`.
+- Future: coordinated waypoints by synchronizing travel plans (out of MVP scope).
 
-### Checkpoint Protocol
+### Travel Sync Data
 
 **Key**: `al_bot:party:travel`
 
 ```
 {
-  destination: { x, y, map },
-  checkpoints: [{ x, y, map }],
-  currentCheckpoint: number,
-  slowestSpeed: number,
+  destination: string | null,
+  slowestSpeed: number | null,
+  active: boolean,
   lastUpdated: number,
 }
 ```
 
-The party leader (merchant) writes the travel plan. Hunters read and follow. Merchant stand must close before any movement including travel sync (R52). Movement system reads `ctx.party.travelSync` for speed matching — if `active` is true, character speed is limited to `slowestSpeed`.
+Merchant writes travel sync data as part of party stats evaluation. All characters read. Movement system reads `ctx.party.travelSync` for speed matching — if `active` is true, `cruise(slowestSpeed)` is called before travel and `cruise(500)` on arrival. Merchant stand must close before any movement including travel sync (R52).
 
 **Requirements**: R51
 
@@ -268,7 +272,7 @@ The party leader (merchant) writes the travel plan. Hunters read and follow. Mer
 
 ## Trade-Slot Coordination (R55)
 
-Hunters maintain game trade slots listing needed items at 1g/item. The merchant fulfills own characters' trade-slot requests when nearby without price evaluation. This uses the game's built-in trade system, not CM or localStorage — the merchant scans nearby characters' trade slots and purchases listed items. WorldModel already categorizes `charactersOfferingTrade`.
+Hunters post **buy requests** in game trade slots listing needed items at 1g/item (slot has `b` flag). The merchant **sells** to those buy requests via `trade_sell(target, slot, quantity)`. Own-character trades are always fulfilled without price evaluation. Non-own-character trades are price-gated (see Trade system contract). This uses the game's built-in trade system, not CM or localStorage. WorldModel already categorizes `charactersOfferingTrade`.
 
 No Party system plumbing is needed for this — it is a game mechanic interaction handled by the Objective system's merchant strategy.
 

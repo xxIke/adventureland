@@ -73,7 +73,7 @@ ctx.config = {
     recoveryEnabled: false,   // dev: cold start; prod: read persisted state on boot (R4)
   },
   restockThresholds: {
-    potionsPerHunter: { hpot0: 100, hpot1: 20 },  // target potion counts (R23)
+    potionsPerHunter: { hpot0: 100, hpot1: 50, mpot0: 100, mpot1: 50 },  // target potion counts (R23)
   },
   specialMonsters: ["phoenix", "mvampire"],
   friendlyPlayers: [],      // owner IDs of friendly players (alt accounts, friends)

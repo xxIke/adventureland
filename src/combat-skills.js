@@ -97,8 +97,6 @@ export function createCombatSkills(ctx, strategy) {
     try {
       if (character.rip) return { delay: 1000 };
 
-      if (!ctx.targeting?.attackTarget) return { delay: 1000 };
-
       const result = strategy.useSkills(ctx);
       return result && result.delay ? result : { delay: 500 };
     } catch (e) {

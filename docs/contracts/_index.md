@@ -48,6 +48,7 @@ All contracts reference [game-api.md](../game-api.md) for game function semantic
 | `movement.md` | Movement | Phase 2 | Revised | R9, R10, R51, R52 |
 | `objective.md` | Objective | Phase 3 | Revised | R15, R16, R21-R31, R37, R51-R58 |
 | `party.md` | Party | Phase 3 | Revised | R7, R8, R51, R55 |
+| `trade.md` | Trade | Phase 3 | Authored | R28, R55 |
 | `merchant-skills.md` | Merchant Skills | Phase 4 | Planned | R12 |
 
 ### Retired Contracts

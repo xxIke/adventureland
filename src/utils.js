@@ -555,6 +555,94 @@ export function findSellableItems(keepList) {
 }
 
 // ---------------------------------------------------------------------------
+//  Trade/Transfer Utilities
+// ---------------------------------------------------------------------------
+
+/**
+ * Sell an item to a target's buy listing (trade slot with b flag).
+ * Server auto-picks matching item from seller's inventory.
+ * @param {object} target - entity object of the buyer
+ * @param {string} tradeSlot - trade slot key (e.g., "trade1")
+ * @param {number} [quantity=1] - quantity to sell
+ * @returns {Promise}
+ */
+export function tradeSell(target, tradeSlot, quantity) {
+  return trade_sell(target, tradeSlot, quantity || 1);
+}
+
+/**
+ * Buy an item from a target's sell listing (trade slot without b flag).
+ * @param {object} target - entity object of the seller
+ * @param {string} tradeSlot - trade slot key (e.g., "trade1")
+ * @param {number} [quantity=1] - quantity to buy
+ * @returns {Promise}
+ */
+export function tradeBuy(target, tradeSlot, quantity) {
+  return trade_buy(target, tradeSlot, quantity || 1);
+}
+
+/**
+ * Send an inventory item directly to a nearby character.
+ * @param {string|object} receiver - character name or entity
+ * @param {number} slot - inventory slot index
+ * @param {number} [quantity=1] - quantity to send
+ * @returns {Promise}
+ */
+export function sendItem(receiver, slot, quantity) {
+  return send_item(receiver, slot, quantity || 1);
+}
+
+/**
+ * Send gold directly to a nearby character.
+ * @param {string|object} receiver - character name or entity
+ * @param {number} gold - amount of gold to send
+ * @returns {Promise}
+ */
+export function sendGold(receiver, gold) {
+  return send_gold(receiver, gold);
+}
+
+// ---------------------------------------------------------------------------
+//  Item Classification Utilities
+// ---------------------------------------------------------------------------
+
+/**
+ * Check if an item should be kept (not sent/sold). Used by trade system and sell classification.
+ * Keeps: potions, scrolls, stand, tracker, quest items, event items.
+ * @param {object} item - item object from character.items (must have .name)
+ * @returns {boolean} true if item should be kept
+ */
+export function isKeepItem(item) {
+  if (!item) return false;
+  const name = item.name;
+  if (name.startsWith('hpot') || name.startsWith('mpot')) return true;
+  if (name.startsWith('scroll') || name.startsWith('cscroll')) return true;
+  if (name === 'stand0' || name === 'tracker') return true;
+  const gItem = G.items[name];
+  if (gItem?.quest) return true;
+  if (gItem?.e) return true;
+  return false;
+}
+
+/**
+ * Classify inventory items explicitly identified as NPC-sellable.
+ * Only items positively identified as loot/junk are returned. Does NOT use a keepList approach.
+ * @param {Array} [inv=character.items] - inventory array to classify
+ * @returns {{ slot: number, item: object }[]} items to sell with their slot indices
+ */
+export function classifyForSale(inv) {
+  const items = inv || character.items;
+  const forSale = [];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!item) continue;
+    if (isKeepItem(item)) continue;
+    forSale.push({ slot: i, item });
+  }
+  return forSale;
+}
+
+// ---------------------------------------------------------------------------
 //  Gold Management Utilities
 // ---------------------------------------------------------------------------
 

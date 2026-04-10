@@ -300,10 +300,11 @@ export function createMovement(ctx, strategy) {
 
     destination = coord;
 
-    // Party travel sync: log speed constraint if active
+    // Party travel sync: apply speed cap via cruise() if active
     const travelSync = ctx.party?.travelSync;
     if (travelSync?.active && travelSync.slowestSpeed) {
-      ctx.logger.info('movement', `Traveling to ${JSON.stringify(coord)} (synced speed: ${travelSync.slowestSpeed})`);
+      try { cruise(travelSync.slowestSpeed); } catch (e) { /* cruise unavailable */ }
+      ctx.logger.info('movement', `Traveling to ${JSON.stringify(coord)} (cruise speed: ${travelSync.slowestSpeed})`);
     } else {
       ctx.logger.info('movement', `Traveling to ${JSON.stringify(coord)}`);
     }
@@ -314,6 +315,7 @@ export function createMovement(ctx, strategy) {
       travelPromise = null;
       destination = null;
       retryCount = 0;
+      try { cruise(500); } catch (e) { /* reset cruise */ }
       if (isMerchant) {
         openStand();
         ctx.logger.debug('movement', 'Opened stand after travel arrival');
@@ -321,6 +323,7 @@ export function createMovement(ctx, strategy) {
     }).catch((e) => {
       travelPromise = null;
       retryCount++;
+      try { cruise(500); } catch (e2) { /* reset cruise */ }
       if (retryCount > 3) {
         ctx.logger.error('movement', `Travel failed after 3 retries: ${e?.message || e}`);
         destination = null;

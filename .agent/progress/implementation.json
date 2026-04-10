@@ -5,7 +5,7 @@
   "objective": "Implement all systems from Phase 2 through Phase 4 against redesigned contracts",
   "scope": "Phase 2 (targeting, attack, combat-skills, potion-regen, movement), Phase 3 (objective, party), Phase 4 (merchant strategy, merchant-skills)",
   "why_now": "Foundation complete, audit done, contracts redesigned and corrected. Implementation is the next link in the M1 chain.",
-  "current_focus": ["Phase 4: merchant strategy, merchant-skills contract"],
+  "current_focus": ["v0.1.1 review fix-up complete; merchant-skills contract next"],
   "related_context": [
     "docs/contracts/_index.md",
     "docs/architecture/context-map.md",
@@ -13,6 +13,29 @@
     "docs/review/audit-v0.1.0.md"
   ],
   "recent_updates": [
+    {
+      "date": "2026-04-10",
+      "summary": "v0.1.1 review fix-up: 6 blockers + 7 warnings addressed per user notes. New Trade system (src/trade.js) for entity-level item/gold transfer with hunter/merchant strategies. Merchant workflow: guard-based step progression, trade_sell for delivery, gold baseline tracks hunting profit, explicit sell classification via classifyForSale(). Combat-skills: removed system-level attackTarget gate (strategies gate themselves). Potion-regen: fallback to weaker tiers only. Movement: cruise() for travel sync speed. Config: MP potion thresholds added. Party: merchant excluded from DPS calc. Stand management moved to movement exclusively. Contracts updated: combat-skills, movement, configuration, party, objective. New trade.md contract. Game-api.md: added trade_sell, trade_buy, send_item, send_gold, cruise.",
+      "artifacts": [
+        "src/trade.js",
+        "src/boot.js",
+        "src/objective.js",
+        "src/utils.js",
+        "src/combat-skills.js",
+        "src/potion-regen.js",
+        "src/configuration.js",
+        "src/movement.js",
+        "src/party.js",
+        "docs/contracts/trade.md",
+        "docs/game-api.md",
+        "docs/contracts/combat-skills.md",
+        "docs/contracts/movement.md",
+        "docs/contracts/configuration.md",
+        "docs/contracts/party.md",
+        "docs/contracts/objective.md"
+      ],
+      "next": ["Author merchant-skills contract", "Implement R33/R34/R37 (map POI, NPC nav, monster hunts)"]
+    },
     {
       "date": "2026-04-10",
       "summary": "Contract alignment pass: Fixed boot.js TDZ error and ctx initialization. Added missing config fields (recoveryEnabled, restockThresholds, friendlyPlayers). Logging stats provider. World-model friendlyPlayers integration. Potion-regen await swap(). Movement fully rewritten: ±90° kite logic with can_move_to(), vector length per contract, merchant stand management, nearest-attacker selection. Party: full ctx.party shape, localStorage al_bot:party:stats read/write, complete status snapshot with potions/gold/needsResupply. Combat skills: priest (partyheal) and paladin (selfheal) strategies. Boot.js: class-specific strategy wiring. Movement contract kite signature fixed. Utility functions implemented (src/utils.js).",

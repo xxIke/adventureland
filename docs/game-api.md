@@ -126,6 +126,7 @@ Individual skills have independent cooldowns checked via `parent.next_skill[skil
 | `move(x, y)` | Short-distance direct movement | Immediate, no pathfinding. Use for combat repositioning. |
 | `smart_move(destination)` | Long-distance travel with pathfinding | Returns a promise. `destination` can be a map name, monster type string, or `{x, y, map}` object. |
 | `stop()` | Cancel current movement | Stops both `move()` and `smart_move()` in progress. |
+| `cruise(speed)` | Set upper cap on movement speed | `cruise(500)` resets to max speed. Returns promise. Use for party travel sync (R51). |
 | `is_moving()` | Check if character is currently moving | |
 
 **Rule**: Use `move(x, y)` for combat repositioning (kiting, approach, flee). Use `smart_move()` only for cross-map travel. Avoid calling `smart_move()` multiple times concurrently — cancel the previous one first.
@@ -352,6 +353,10 @@ Growth formulas derived from server code (`server.js:level_monster`, `server.js:
 | `bank_deposit(gold_amount)` | Deposit gold into bank (must be at bank). |
 | `bank_withdraw(gold_amount)` | Withdraw gold from bank (must be at bank). |
 | `trade(item_slot, trade_slot, price, quantity)` | List item for trade in a trade slot. |
+| `trade_sell(target, trade_slot, quantity?)` | Sell item to a target's **buy listing**. Server auto-picks matching item from seller's inventory. `target` must be entity object. `quantity` optional (default 1). Returns promise. |
+| `trade_buy(target, trade_slot, quantity?)` | Buy item from a target's **sell listing**. `target` must be entity object. `quantity` optional (default 1). Returns promise. |
+| `send_item(receiver, slot, quantity?)` | Send inventory item directly to nearby character. `receiver` can be name string or entity. `slot` is inventory index. Returns promise. |
+| `send_gold(receiver, gold)` | Send gold directly to nearby character. `receiver` can be name string or entity. Returns promise. |
 | `item_grade(item)` | Returns scroll grade needed for upgrade/compound (0, 1, or 2). |
 | `item_value(item)` | Returns NPC sell value of an item. |
 | `open_stand()` | Open merchant stand for trading. |
@@ -359,9 +364,10 @@ Growth formulas derived from server code (`server.js:level_monster`, `server.js:
 
 **`character.bank`**: Object containing bank vault arrays. Each vault key maps to an array of items (or `null` for empty slots). Also contains a `"gold"` key with the deposited gold amount. Only accessible when character is at the bank NPC.
 
+**Trade slot flags**: Trade slots in `entity.slots` have a `b` property when the listing is a **buy request** (the entity wants to buy the item at the listed price). Without `b`, the listing is a sell offer. The `rid` property is used internally for trade integrity (fraud prevention). Both `trade_sell` and `trade_buy` reference `slots[trade_slot].rid` automatically.
+
 ## Unverified / Needs Testing
 
-- ~~Exact structure of `character.friends`~~ — Verified: array of owner IDs
 - Exact behavior of `smart_move()` cancellation — does `stop()` cause the promise to reject?
 - Exact party acceptance callback mechanism (socket events vs global handlers)
 - Whether `G.maps[mapName].ref` provides pre-resolved NPC positions for all maps

@@ -2,8 +2,7 @@
 system: CombatSkills
 writes: nothing
 reads:
-  ctx.targeting:
-    - attackTarget
+  ctx: "strategies read what they need"
 game_globals:
   - character
   - use_skill()
@@ -15,17 +14,15 @@ game_globals:
 
 ## Identity
 
-The Combat Skills system uses class-specific skills on their own cooldown cadences, independent from the attack/heal cooldown. It reads the current target from `ctx.targeting` and applies skills that enhance combat effectiveness.
+The Combat Skills system uses class-specific skills on their own cooldown cadences, independent from the attack/heal cooldown. Each strategy decides its own gating requirements — some skills need an attack target, others react to party health or character state. The system only gates on character death; strategies handle all other preconditions.
 
 **Scheduling**: Registered as `'combat-skills'` at ~500ms interval. Adaptive — returns longer delays when no target exists or all skills are on cooldown. Not applicable to merchant characters.
 
 ## Dependencies
 
-- `ctx.targeting` — reads `attackTarget` for skill targeting
+- `ctx` — full shared context passed to strategies. Strategies read what they need (targeting, world, config).
 - `ctx.logger` — logs skill use and errors
 - Game globals: `character`, `use_skill()`, `is_on_cooldown()`, `parent.next_skill`
-
-**Does NOT read** `ctx.world` or `ctx.config` directly. Skill decisions are based on the current target and character state.
 
 ## Public Interface
 
@@ -45,9 +42,8 @@ Creates and returns a Combat Skills system instance.
 Main evaluation tick:
 
 1. **Death check**: If `character.rip`, return `{ delay: 1000 }`.
-2. **Target check**: Read `attackTarget` from `ctx.targeting`. If `null`, return `{ delay: 1000 }` (no target, no skills needed).
-3. **Evaluate skills**: Call `strategy.useSkills(ctx)`. The strategy reads the current target from `ctx.targeting` and checks individual skill cooldowns.
-4. **Adaptive delay**: Return `{ delay }` from strategy, or default `{ delay: 500 }`.
+2. **Evaluate skills**: Call `strategy.useSkills(ctx)`. The strategy decides its own gating — whether it needs an attack target, party health data, or other conditions. Skills have independent cooldowns from attack/heal.
+3. **Adaptive delay**: Return `{ delay }` from strategy, or default `{ delay: 500 }`.
 
 **Returns:** `{ delay }` for adaptive scheduling.
 
@@ -106,8 +102,7 @@ Future skill strategies will be per-class with full skill rotations. Each class 
 writes: nothing
 
 reads:
-  ctx.targeting:
-    - attackTarget
+  ctx: "strategies read what they need (targeting, world, config)"
 ```
 
 ## Behavior Contracts

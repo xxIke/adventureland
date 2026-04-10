@@ -25,6 +25,7 @@ game_globals:
   - can_move_to()
   - open_stand()
   - close_stand()
+  - cruise()
 ---
 
 # Movement Contract
@@ -125,9 +126,10 @@ Movement's responsibility is the movement lifecycle: ensure closed before move, 
 ### Party Travel Sync (R51)
 
 During group travel, Movement reads `ctx.party.travelSync` for speed matching:
-- If `travelSync.active` is true, character movement speed is set to `travelSync.slowestSpeed` instead of full speed.
-- Speed resets to full when within arrival distance of destination.
+- If `travelSync.active` is true, call `cruise(travelSync.slowestSpeed)` before initiating travel to cap movement speed.
+- On travel arrival or failure, call `cruise(500)` to reset to full speed.
 - Merchant stand must close before travel sync movement (R52).
+- Each character uses the movement system to coordinate travel independently. MVP uses `smart_move()`. Future: coordinated waypoints (out of MVP scope).
 
 ### `movement.stop()`
 

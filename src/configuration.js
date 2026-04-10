@@ -37,7 +37,7 @@ export function createConfig() {
     },
     specialMonsters: ['phoenix', 'mvampire'],
     restockThresholds: {
-      potionsPerHunter: { hpot0: 100, hpot1: 20 },
+      potionsPerHunter: { hpot0: 100, hpot1: 50, mpot0: 100, mpot1: 50 },
     },
     friendlyPlayers: [],
     farmTarget: null,

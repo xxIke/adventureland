@@ -197,8 +197,10 @@ export function createPotionRegen(ctx) {
       return;
     }
 
-    // Desired tier unavailable — fallback to next available tier (strongest to weakest)
-    for (const name of potionNames) {
+    // Desired tier unavailable — fallback to weaker (cheaper) tiers only, never stronger
+    const desiredIdx = potionNames.indexOf(desiredPotion);
+    for (let i = desiredIdx + 1; i < potionNames.length; i++) {
+      const name = potionNames[i];
       if (findPotionSlot(items, name) >= 0) {
         const fallbackSlot = findPotionSlot(items, name);
         const last = findLastPotionSlot(items, potionNames);

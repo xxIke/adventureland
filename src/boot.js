@@ -24,6 +24,7 @@ import { createPotionRegen } from './potion-regen.js';
 import { createMovement, createSmartMoveStrategy } from './movement.js';
 import { createObjective, createHunterStrategy, createMerchantStrategy } from './objective.js';
 import { createParty } from './party.js';
+import { createTrade, createHunterTradeStrategy, createMerchantTradeStrategy } from './trade.js';
 
 const bus = createEventBus();
 const scheduler = createScheduler(bus);
@@ -68,6 +69,8 @@ const targeting = createTargeting(ctx, targetingStrategies);
 
 const potionRegen = createPotionRegen(ctx);
 const movement = createMovement(ctx, createSmartMoveStrategy());
+const tradeStrategy = isMerchant ? createMerchantTradeStrategy() : createHunterTradeStrategy();
+const trade = createTrade(ctx, tradeStrategy);
 
 // Phase 1 — context writers
 scheduler.register('world-model', worldModel.tick, { interval: 500 });
@@ -99,6 +102,7 @@ if (!isMerchant) {
 
 scheduler.register('potion-regen', potionRegen.tick, { interval: 150 });
 scheduler.register('movement', movement.tick, { interval: 250 });
+scheduler.register('trade', trade.tick, { interval: 2000 });
 scheduler.register('logging', logger.tick, { interval: 5000 });
 
 // Initial synchronous population — ctx writers run first so readers see real data on first tick

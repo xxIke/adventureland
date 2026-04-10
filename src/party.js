@@ -123,8 +123,8 @@ export function createParty(ctx) {
           bestTank = snap.name;
         }
 
-        // Estimate DPS from character attack stats if available
-        if (snap.attack && snap.frequency) {
+        // Estimate DPS from character attack stats (exclude merchant — not combat-relevant)
+        if (snap.ctype !== 'merchant' && snap.attack && snap.frequency) {
           totalDps += snap.attack * snap.frequency;
         }
       } catch (e) {

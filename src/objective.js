@@ -8,9 +8,9 @@
  */
 
 import {
-  nearLocation, findSellableItems, buyItem, sellItem,
+  nearLocation, classifyForSale, buyItem, sellItem,
   depositJunk, retrieveItem, getGoldBaseline, updateGoldBaseline,
-  openStand, countItem, catalogInventory,
+  countItem, catalogInventory, tradeSell,
 } from './utils.js';
 
 /**
@@ -212,7 +212,7 @@ function readHunterStatus(name) {
 
 /** Step sequences for each merchant objective type. */
 const MERCHANT_STEPS = {
-  restock: ['check-needs', 'travel-to-bank', 'withdraw', 'buy-potions', 'travel-to-party', 'deliver', 'collect-junk', 'travel-to-bank', 'deposit', 'check-baseline'],
+  restock: ['check-needs', 'travel-to-bank', 'withdraw', 'buy-potions', 'travel-to-party', 'deliver', 'collect-junk', 'check-baseline', 'travel-to-bank', 'deposit'],
   sell: ['travel-to-ponty', 'sell-items'],
   'bank-ops': ['travel-to-bank', 'deposit-gold', 'store-items'],
   'trade-fulfill': ['scan-trades', 'buy-items'],
@@ -231,6 +231,9 @@ const MERCHANT_STEPS = {
 export function createMerchantStrategy() {
   let lastDeathTime = 0;
   let restockNeeds = null; // cached from check-needs step
+  let goldBeforeCollect = 0; // gold snapshot before hunter collection (B3 profit tracking)
+  let collectStartTime = 0; // when collect-junk started (timeout guard)
+  let inventoryCountAtCollect = 0; // item count at collect start (change detection)
 
   return {
     name: 'merchant',
@@ -253,16 +256,9 @@ export function createMerchantStrategy() {
         // Fall through to re-evaluate
       }
 
-      // If already in a multi-step workflow, check step completion and let it finish
+      // If already in a multi-step workflow, check step completion via state-verification guards
       if (current.step && !current.stepComplete && current.type !== 'idle' && current.type !== 'recover') {
-        // Travel steps complete when character arrives at location
-        if (current.step.startsWith('travel-to') && current.location?.coord) {
-          if (nearLocation(current.location.coord, 50)) {
-            ctx.objective.stepComplete = true;
-          }
-        }
-        // Action steps (non-travel) complete immediately — executeMerchantStep runs on advanceStep
-        if (!current.step.startsWith('travel-to')) {
+        if (isStepComplete(ctx, current)) {
           ctx.objective.stepComplete = true;
         }
         return null;
@@ -322,9 +318,9 @@ export function createMerchantStrategy() {
         }
       }
 
-      // 5. Sell (inventory has sellable items beyond threshold)
-      const sellable = findSellableItems(ctx.config.restockThresholds ? Object.keys(ctx.config.restockThresholds.potionsPerHunter || {}) : []);
-      if (sellable.length > 10) {
+      // 5. Sell (inventory has explicitly classified sellable items)
+      const sellable = classifyForSale(character.items);
+      if (sellable.length > 5) {
         if (current.type !== 'sell') {
           return {
             type: 'sell', target: null, location: findPontyLocation(),
@@ -334,9 +330,8 @@ export function createMerchantStrategy() {
         return null;
       }
 
-      // 6. Idle — stand open, monitor
+      // 6. Idle — monitor (stand management is movement system's responsibility)
       if (current.type !== 'idle') {
-        openStand();
         return { type: 'idle', target: null, location: null, step: null, stepComplete: false };
       }
       return null;
@@ -351,7 +346,7 @@ export function createMerchantStrategy() {
 
       // Execute step-specific logic before advancing
       try {
-        executeMerchantStep(ctx, current, restockNeeds);
+        executeMerchantStep(ctx, current);
       } catch (e) {
         ctx.logger.error('objective', `step execution error (${current.step}): ${e.message}`);
       }
@@ -385,10 +380,92 @@ export function createMerchantStrategy() {
   };
 
   /**
+   * State-verification guard for step completion. Checks real game state
+   * rather than trusting async promises. Each step defines its own completion condition.
+   */
+  function isStepComplete(ctx, current) {
+    const step = current.step;
+
+    // Travel steps: complete when arrived at location
+    if (step.startsWith('travel-to') && current.location?.coord) {
+      return nearLocation(current.location.coord, 50);
+    }
+
+    switch (step) {
+      case 'check-needs':
+      case 'check-baseline':
+      case 'scan-trades':
+        return true; // Synchronous steps complete immediately
+
+      case 'withdraw':
+        if (!restockNeeds) return true;
+        for (const potion in restockNeeds) {
+          if (countItem(potion) < restockNeeds[potion]) return false;
+        }
+        return true;
+
+      case 'buy-potions':
+        if (!restockNeeds) return true;
+        for (const potion in restockNeeds) {
+          if (countItem(potion) < restockNeeds[potion]) return false;
+        }
+        return true;
+
+      case 'deliver': {
+        // Complete when no more fulfillable buy requests in hunter's trade slots
+        const target = current.target;
+        for (const id in parent.entities) {
+          const e = parent.entities[id];
+          if (e?.name === target && e.slots) {
+            for (const slot in e.slots) {
+              if (slot.includes('trade') && e.slots[slot]?.b && countItem(e.slots[slot].name) > 0) {
+                return false; // Still have items to deliver
+              }
+            }
+          }
+        }
+        return true;
+      }
+
+      case 'collect-junk': {
+        // Complete when inventory changed (items received) OR timeout (~15s)
+        const itemCount = character.items.filter(Boolean).length;
+        if (itemCount > inventoryCountAtCollect) return true;
+        if (Date.now() - collectStartTime > 15000) return true;
+        return false;
+      }
+
+      case 'deposit':
+      case 'deposit-gold':
+      case 'store-items': {
+        const baseline = getGoldBaseline() || character.gold;
+        return character.gold <= baseline + 100; // Close enough after deposit
+      }
+
+      case 'sell-items':
+        return classifyForSale(character.items).length === 0;
+
+      case 'buy-items':
+        return true; // Trade system handles fulfillment
+
+      case 'execute-upgrade':
+      case 'execute-compound':
+        return true; // Fire-and-forget; result checked next tick via inventory scan
+
+      case 'select-item':
+      case 'acquire-scroll':
+        return true; // Synchronous evaluation steps
+
+      default:
+        return true;
+    }
+  }
+
+  /**
    * Executes step-specific game interactions for the completing step.
    * Called by advanceStep before moving to the next step.
    */
-  function executeMerchantStep(ctx, current, needs) {
+  function executeMerchantStep(ctx, current) {
     const step = current.step;
 
     switch (step) {
@@ -449,10 +526,26 @@ export function createMerchantStrategy() {
       }
 
       case 'deliver': {
-        // Send potions to hunters via trade
+        // Fulfill hunter's buy requests via trade_sell (R55)
         ctx.logger.info('objective', `Delivering supplies to ${current.target}`);
-        // Trade API interaction — send items to nearby hunter
-        // For MVP: items are available, hunter picks up via trade slots (R55)
+        for (const id in parent.entities) {
+          const e = parent.entities[id];
+          if (e?.name === current.target && e.slots) {
+            for (const slotName in e.slots) {
+              if (!slotName.includes('trade')) continue;
+              const slot = e.slots[slotName];
+              if (!slot || !slot.b) continue; // Only buy requests
+              if (countItem(slot.name) > 0) {
+                tradeSell(e, slotName, slot.q || 1).catch(err =>
+                  ctx.logger.debug('objective', `trade_sell to ${current.target} failed: ${err.message}`)
+                );
+              }
+            }
+            break;
+          }
+        }
+        // Record gold before hunter sends junk (for profit tracking)
+        goldBeforeCollect = character.gold;
         break;
       }
 
@@ -481,6 +574,15 @@ export function createMerchantStrategy() {
         break;
       }
 
+      case 'collect-junk': {
+        // Record state for guard-based completion detection
+        collectStartTime = Date.now();
+        inventoryCountAtCollect = character.items.filter(Boolean).length;
+        ctx.logger.info('objective', `Waiting for hunter sends (gold before: ${goldBeforeCollect})`);
+        // Hunters send junk/gold via the Trade system when they detect merchant nearby
+        break;
+      }
+
       case 'check-baseline': {
         let baseline = getGoldBaseline();
         if (baseline === null) {
@@ -488,24 +590,24 @@ export function createMerchantStrategy() {
           updateGoldBaseline(baseline);
           ctx.logger.info('objective', `Gold baseline initialized: ${baseline}`);
         } else {
-          // Grow by ~10% of surplus, cap at 112.5M
-          const surplus = character.gold - baseline;
-          if (surplus > 0) {
-            const growth = Math.floor(surplus * 0.1);
+          // Grow by 10% of hunting profit (gold received from hunters)
+          const huntingProfit = character.gold - goldBeforeCollect;
+          if (huntingProfit > 0) {
+            const growth = Math.floor(huntingProfit * 0.1);
             const newBaseline = Math.min(baseline + growth, 112500000);
             updateGoldBaseline(newBaseline);
-            ctx.logger.info('objective', `Gold baseline: ${baseline} -> ${newBaseline}`);
+            ctx.logger.info('objective', `Gold baseline: ${baseline} -> ${newBaseline} (profit: ${huntingProfit})`);
           }
         }
         break;
       }
 
       case 'sell-items': {
-        const slots = findSellableItems(Object.keys(ctx.config.restockThresholds?.potionsPerHunter || {}));
-        for (const slot of slots) {
-          try { sellItem(slot); } catch (e) { /* continue selling */ }
+        const forSale = classifyForSale(character.items);
+        for (const entry of forSale) {
+          try { sellItem(entry.slot); } catch (e) { ctx.logger.debug('objective', `sell slot ${entry.slot} failed: ${e.message}`); }
         }
-        ctx.logger.info('objective', `Sold ${slots.length} items`);
+        ctx.logger.info('objective', `Sold ${forSale.length} items`);
         break;
       }
 
@@ -515,17 +617,9 @@ export function createMerchantStrategy() {
       }
 
       case 'buy-items': {
-        // Buy items from own characters' trade slots at 1g
-        const traders = ctx.world?.charactersOfferingTrade || [];
-        for (const t of traders) {
-          if (t.name === current.target && t.slots) {
-            for (const slot in t.slots) {
-              if (slot.includes('trade') && t.slots[slot]) {
-                try { buy(t.slots[slot].name, 1); } catch (e) { /* best effort */ }
-              }
-            }
-          }
-        }
+        // Trade system (createMerchantTradeStrategy) handles trade_sell fulfillment continuously.
+        // This step is a synchronous acknowledge — trade system does the actual work.
+        ctx.logger.info('objective', `Trade fulfillment for ${current.target} delegated to trade system`);
         break;
       }
 
