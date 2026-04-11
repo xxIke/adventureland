@@ -5,7 +5,7 @@
   "objective": "Implement all systems from Phase 2 through Phase 4 against redesigned contracts",
   "scope": "Phase 2 (targeting, attack, combat-skills, potion-regen, movement), Phase 3 (objective, party), Phase 4 (merchant strategy, merchant-skills)",
   "why_now": "Foundation complete, audit done, contracts redesigned and corrected. Implementation is the next link in the M1 chain.",
-  "current_focus": ["v0.1.1 review fix-up complete; merchant-skills contract next"],
+  "current_focus": ["Movement system redesign complete (docs + implementation); location service implemented"],
   "related_context": [
     "docs/contracts/_index.md",
     "docs/architecture/context-map.md",
@@ -13,6 +13,20 @@
     "docs/review/audit-v0.1.0.md"
   ],
   "recent_updates": [
+    {
+      "date": "2026-04-10",
+      "summary": "Movement system redesign (documentation phase). Restructured movement contract with external/internal separation — external interface stable across internal pathfinding iteration. New location service contract (docs/contracts/location.md) for centralized NPC/monster/keyword resolution via findNPCLocation(npcId) as single NPC interface. Updated intent with: range buffer (approach 0.8, kite 0.9), universal can_move_to() validation with direction iteration, always-kite regardless of range comparison, party-aware flee direction, town teleport escape, pathfinding-agnostic travel contract. Strategy opts parameter for farm boundary and party positions. Architecture docs updated: context-map (partyMembers, location.boundary, can_move_to, cruise, use), systems.md (external/internal note), infrastructure.md (location utilities).",
+      "artifacts": [
+        "docs/intent/movement.md",
+        "docs/contracts/movement.md",
+        "docs/contracts/location.md",
+        "docs/contracts/_index.md",
+        "docs/architecture/infrastructure.md",
+        "docs/architecture/systems.md",
+        "docs/architecture/context-map.md"
+      ],
+      "next": ["Implement movement redesign against updated contract", "Implement location service (src/location.js)", "Update objective.js to use location service"]
+    },
     {
       "date": "2026-04-10",
       "summary": "v0.1.1 review fix-up: 6 blockers + 7 warnings addressed per user notes. New Trade system (src/trade.js) for entity-level item/gold transfer with hunter/merchant strategies. Merchant workflow: guard-based step progression, trade_sell for delivery, gold baseline tracks hunting profit, explicit sell classification via classifyForSale(). Combat-skills: removed system-level attackTarget gate (strategies gate themselves). Potion-regen: fallback to weaker tiers only. Movement: cruise() for travel sync speed. Config: MP potion thresholds added. Party: merchant excluded from DPS calc. Stand management moved to movement exclusively. Contracts updated: combat-skills, movement, configuration, party, objective. New trade.md contract. Game-api.md: added trade_sell, trade_buy, send_item, send_gold, cruise.",
@@ -174,6 +188,17 @@
       "evidence": ["src/movement.js"],
       "last_touched": "2026-04-10",
       "notes": "Full contract alignment: ±90° kite logic with can_move_to() validation, vector length = speed*(delay/1000), nearest-attacker selection, merchant stand management (close before move, open after travel). Kite trigger: targets > 0 AND (!tank OR ranged). Imports utils for stand functions."
+    },
+    "movement_redesign": {
+      "description": "Movement system redesign — external/internal separation, location service, combat positioning improvements",
+      "status": "passing",
+      "priority": "high",
+      "blocked_by": [],
+      "correlates": ["phase2_movement", "phase3_objective"],
+      "last_touched": "2026-04-10",
+      "next_action": "None — docs + implementation complete",
+      "evidence": ["docs/contracts/movement.md", "docs/contracts/location.md", "docs/intent/movement.md", "src/movement.js", "src/location.js", "src/objective.js", "src/boot.js"],
+      "notes": "Full redesign complete. Contract restructured with external/internal separation. Location service (src/location.js) centralizes findNPCLocation, findMonsterLocation, resolveLocation (handles map names like 'bank', NPC ids, monster types, keywords). Movement overhauled: approach range*0.8 with prediction, kite range*0.9 with farm boundary + party safety scoring, flee with party-aware direction + can_move_to iteration, town teleport escape (flee cornered + travel total failure). Strategy opts pattern passes farmBoundary/partyPositions/rangeBuffer. Objective.js migrated to use location service imports."
     },
     "phase2_boot_wiring": {
       "description": "Boot.js — all systems wired, strategy selection at boot, conditional registration",

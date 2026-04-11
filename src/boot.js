@@ -68,7 +68,7 @@ if (!isMerchant) {
 const targeting = createTargeting(ctx, targetingStrategies);
 
 const potionRegen = createPotionRegen(ctx);
-const movement = createMovement(ctx, createSmartMoveStrategy());
+const movement = createMovement(ctx, createSmartMoveStrategy(ctx));
 const tradeStrategy = isMerchant ? createMerchantTradeStrategy() : createHunterTradeStrategy();
 const trade = createTrade(ctx, tradeStrategy);
 

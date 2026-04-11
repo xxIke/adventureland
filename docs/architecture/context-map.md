@@ -157,12 +157,14 @@ Movement:
   reads:
     - ctx.objective.type
     - ctx.objective.location.coord
+    - ctx.objective.location.boundary  # optional farm zone boundary for kite containment
     - ctx.targeting.attackTarget
     - ctx.targeting.healTarget
     - ctx.world.hostileMonsters
     - ctx.world.hostilePlayers
+    - ctx.world.partyMembers           # flee-toward-party, kite-toward-safety
     - ctx.party.tank
-    - ctx.party.travelSync          # speed matching during group travel (R51)
+    - ctx.party.travelSync             # speed matching during group travel (R51)
     - ctx.config.thresholds.fleeHpPercent
   game_globals:
     - character
@@ -170,7 +172,10 @@ Movement:
     - smart_move()
     - stop()
     - distance()
-    - open_stand() / close_stand()  # merchant stand management (R52)
+    - can_move_to()                    # combat movement validation
+    - cruise()                         # party travel sync (R51)
+    - use()                            # town teleport for flee/travel recovery
+    - open_stand() / close_stand()     # merchant stand management (R52)
 
 Party:
   writes: ctx.party (tank identification, travelSync; also writes to localStorage and sends CMs)

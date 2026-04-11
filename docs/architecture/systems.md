@@ -129,23 +129,26 @@ ctx.objective = {
 
 **Purpose**: Handle all character movement — travel, repositioning, kiting, fleeing.
 
-**Responsibilities**: Long-distance travel (wrapping `smart_move` initially). Combat repositioning — melee: approach and hold ground; ranged/heal: maintain `character.range` distance to target. Reactive kiting when a non-tank character is being targeted by a hostile (stay outside hostile's range while maintaining own range to target). Flee behavior when under attack at critical HP. Party travel synchronization — match speed to slowest present party member, read `ctx.party.travelSync` for coordinated travel (R51). Merchant stand management — close stand before ALL movement (including short NPC repositioning), reopen stand after movement completes at destination (R52).
+**Responsibilities**: Long-distance travel via strategy-encapsulated implementation (smart_move initially, custom pathfinding future). Combat repositioning — melee: approach to `character.range * 0.8` and hold ground; ranged/heal: maintain `character.range * 0.9` distance to target. Reactive kiting when a non-tank character is being targeted by a hostile. All combat movement validated with `can_move_to()` — iterate for alternatives when blocked. Flee behavior when under attack at critical HP — prefer party direction, `use("town")` as emergency escape. Party travel synchronization — match speed to slowest present party member via `cruise()`, read `ctx.party.travelSync` for coordinated travel (R51). Merchant stand management — close stand before ALL movement (including short NPC repositioning), reopen stand after movement completes at destination (R52).
+
+**External/internal separation**: The movement contract has a stable external interface (modes, ctx reads, public methods) and an internal strategy layer that encapsulates implementation. Other systems depend only on the external interface. Internal travel implementation (smart_move vs custom pathfinding) is strategy-encapsulated and subject to iteration without contract changes.
 
 **Mode selection**: Movement determines its mode each tick by reading `ctx.objective`, `ctx.targeting`, and character state:
 - `flee` — `character.targets > 0` and HP critically low. Inviolable.
-- `combat` — `ctx.objective.type` is a combat objective (e.g., `'farm'`) AND `ctx.targeting` has a target. Reposition to maintain `character.range`. Melee: approach + hold. Ranged/heal: maintain distance. Kite reactively if non-tank under threat.
+- `combat` — `ctx.targeting` has a target. Reposition to maintain effective range. Melee: approach + hold. Ranged/heal: maintain distance. Kite reactively if non-tank under threat.
 - `travel` — `ctx.objective` requires being at a different location (farm target not at current map, merchant needs to go to bank, etc.).
 - `idle` — at the right location, no target, nothing to do.
 
 Movement does not need to be told what mode to be in — it reads the current state and selects the appropriate mode. This eliminates the need for `movement:request` events from other systems.
 
-**Reads**: `ctx.objective` (what we should be doing and where), `ctx.targeting` (current target for repositioning), `ctx.world` (entity positions, hostiles for flee), `ctx.party` (tank identity for kite decisions, travelSync for speed matching), `ctx.config`.
+**Reads**: `ctx.objective` (what to do and where), `ctx.targeting` (current target for repositioning), `ctx.world` (entity positions, hostiles for flee, partyMembers for directional flee/kite), `ctx.party` (tank identity for kite decisions, travelSync for speed matching), `ctx.config`.
 **Writes**: None to shared state.
 **Events consumed**: None — reads shared context directly.
 **Scheduling**: High frequency (~100-250ms) when actively repositioning or fleeing, low frequency when traveling or idle.
-**Strategies**: Smart-move wrapper (Phase 2), custom pathfinding (future).
+**Strategies**: Smart-move wrapper (Phase 2), custom pathfinding (future). Strategy swap does not affect external contract.
+**Utilities**: Location service (`src/location.js`) resolves named destinations to coordinates — consumed by Objective to set `ctx.objective.location`, not by Movement directly.
 
-**Requirements**: R9, R10, R51, R52
+**Requirements**: R9, R10, R12, R33, R34, R51, R52
 
 ---
 

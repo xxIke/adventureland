@@ -6,12 +6,21 @@
  * specifies a distant location. The strategy object handles the actual movement
  * API calls (approach, kite, flee, travel) so the mode logic stays independent
  * of movement implementation.
+ *
+ * All combat movement validates destinations with can_move_to() and iterates
+ * angles to find valid alternatives when blocked.
  */
 
 import { openStand, closeStand, isStandOpen } from './utils.js';
 
 /** Default tick delay for combat movement calculations (ms). */
 const COMBAT_DELAY = 200;
+
+/** Angle increments for iterating blocked movement directions. */
+const COMBAT_ANGLES = [0, Math.PI / 12, -Math.PI / 12, Math.PI / 6, -Math.PI / 6, Math.PI / 4, -Math.PI / 4, Math.PI / 3, -Math.PI / 3, Math.PI / 2, -Math.PI / 2];
+
+/** Wider angle set for flee (may need to reverse direction entirely). */
+const FLEE_ANGLES = [0, Math.PI / 6, -Math.PI / 6, Math.PI / 4, -Math.PI / 4, Math.PI / 3, -Math.PI / 3, Math.PI / 2, -Math.PI / 2, Math.PI * 2 / 3, -Math.PI * 2 / 3, Math.PI];
 
 /**
  * Find the nearest hostile entity targeting this character.
@@ -35,16 +44,31 @@ function findNearestHostileTargetingMe() {
 }
 
 /**
+ * Rotate a 2D direction vector by a given angle.
+ * @param {number} dx - x component
+ * @param {number} dy - y component
+ * @param {number} angle - rotation angle in radians
+ * @returns {{ x: number, y: number }}
+ */
+function rotateVector(dx, dy, angle) {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return { x: dx * cos - dy * sin, y: dx * sin + dy * cos };
+}
+
+/**
  * Creates a movement strategy using the game's `smart_move` for long-distance
  * travel and direct `move` calls for combat positioning.
  *
- * Kiting steers up to ±90° from the attacker's movement vector while maintaining
- * range with the attack/heal target and validating destinations with can_move_to().
- * Vector length = character.speed * (delay / 1000) per contract.
+ * All combat movement validates with can_move_to() and iterates angles when blocked.
+ * Approach uses position prediction via going_x/going_y.
+ * Kite scores positions on range maintenance, farm boundary, and party safety.
+ * Flee prefers party centroid direction when available.
  *
+ * @param {object} ctx - Shared context for party/objective data
  * @returns {{ name: string, travel: Function, approach: Function, kite: Function, flee: Function }}
  */
-export function createSmartMoveStrategy() {
+export function createSmartMoveStrategy(ctx) {
   return {
     name: 'smart-move',
 
@@ -53,24 +77,41 @@ export function createSmartMoveStrategy() {
       return smart_move(destination);
     },
 
-    approach(target) {
+    approach(target, opts) {
       if (!target) return;
-      const tx = target.real_x ?? target.x;
-      const ty = target.real_y ?? target.y;
+      const rangeBuffer = opts?.rangeBuffer ?? 0.8;
+
+      // Use predicted position when target is moving
+      const tx = (target.moving && target.going_x !== undefined) ? target.going_x : (target.real_x ?? target.x);
+      const ty = (target.moving && target.going_y !== undefined) ? target.going_y : (target.real_y ?? target.y);
       const dist = distance(character, target);
-      if (dist <= character.range) return;
+      if (dist <= character.range * rangeBuffer) return;
 
       const dx = tx - character.real_x;
       const dy = ty - character.real_y;
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
-      const moveDist = Math.min(character.speed * (COMBAT_DELAY / 1000), dist - character.range);
-      move(character.real_x + (dx / len) * moveDist, character.real_y + (dy / len) * moveDist);
+      const moveDist = Math.min(character.speed * (COMBAT_DELAY / 1000), dist - character.range * rangeBuffer);
+      const ndx = dx / len;
+      const ndy = dy / len;
+
+      // Try direct approach first, then iterate angles if blocked
+      for (const angle of COMBAT_ANGLES) {
+        const r = rotateVector(ndx, ndy, angle);
+        const destX = character.real_x + r.x * moveDist;
+        const destY = character.real_y + r.y * moveDist;
+        if (can_move_to(destX, destY)) {
+          move(destX, destY);
+          return;
+        }
+      }
+      // All directions blocked — no movement this tick
     },
 
-    kite(target, attackerEntity) {
+    kite(target, attackerEntity, opts) {
       if (!target || !attackerEntity) return;
 
       const step = character.speed * (COMBAT_DELAY / 1000);
+      const rangeBuffer = opts?.rangeBuffer ?? 0.9;
 
       // Determine attacker's movement vector
       let avx, avy;
@@ -91,29 +132,51 @@ export function createSmartMoveStrategy() {
       const ty = target.real_y ?? target.y;
       const distToTarget = distance(character, target);
 
-      // Try angles from 0° to ±90° from attacker vector, find valid move
-      const angles = [0, Math.PI / 6, -Math.PI / 6, Math.PI / 4, -Math.PI / 4, Math.PI / 3, -Math.PI / 3, Math.PI / 2, -Math.PI / 2];
+      // Compute party centroid for safety scoring
+      let partyCx = null;
+      let partyCy = null;
+      if (opts?.partyPositions?.length > 0) {
+        partyCx = 0;
+        partyCy = 0;
+        for (const p of opts.partyPositions) { partyCx += p.x; partyCy += p.y; }
+        partyCx /= opts.partyPositions.length;
+        partyCy /= opts.partyPositions.length;
+      }
+
+      // Try angles from 0° to ±90° from attacker vector, find best valid move
       let bestX = null;
       let bestY = null;
       let bestScore = -Infinity;
 
-      for (const angle of angles) {
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-        const dirX = avx * cos - avy * sin;
-        const dirY = avx * sin + avy * cos;
-
-        const destX = character.real_x + dirX * step;
-        const destY = character.real_y + dirY * step;
+      for (const angle of COMBAT_ANGLES) {
+        const r = rotateVector(avx, avy, angle);
+        const destX = character.real_x + r.x * step;
+        const destY = character.real_y + r.y * step;
 
         if (!can_move_to(destX, destY)) continue;
 
         // Score: prefer directions that maintain range with attack/heal target
-        const dx = tx - destX;
-        const dy = ty - destY;
-        const newDistToTarget = Math.sqrt(dx * dx + dy * dy);
-        const rangeOk = newDistToTarget <= character.range;
-        const score = rangeOk ? (1000 - Math.abs(angle)) : (-newDistToTarget);
+        const newDx = tx - destX;
+        const newDy = ty - destY;
+        const newDistToTarget = Math.sqrt(newDx * newDx + newDy * newDy);
+        const rangeOk = newDistToTarget <= character.range * rangeBuffer;
+
+        let score = rangeOk ? 1000 : -newDistToTarget;
+        score -= Math.abs(angle) * 10; // prefer smaller deviations
+
+        // Farm boundary: penalize leaving boundary
+        if (opts?.farmBoundary && rangeOk) {
+          const [bx1, by1, bx2, by2] = opts.farmBoundary;
+          if (destX < bx1 || destX > bx2 || destY < by1 || destY > by2) {
+            score -= 500;
+          }
+        }
+
+        // Party safety: prefer closer to party centroid
+        if (partyCx !== null && rangeOk) {
+          const distToParty = Math.sqrt((destX - partyCx) ** 2 + (destY - partyCy) ** 2);
+          score += Math.max(0, 200 - distToParty);
+        }
 
         if (score > bestScore) {
           bestScore = score;
@@ -124,18 +187,16 @@ export function createSmartMoveStrategy() {
 
       if (bestX !== null) {
         move(bestX, bestY);
-      } else if (distToTarget > character.range) {
+      } else if (distToTarget > character.range * rangeBuffer) {
         // Can't kite safely — approach target instead
-        const dx = tx - character.real_x;
-        const dy = ty - character.real_y;
-        const len = Math.sqrt(dx * dx + dy * dy) || 1;
-        const moveDist = Math.min(step, distToTarget - character.range);
-        move(character.real_x + (dx / len) * moveDist, character.real_y + (dy / len) * moveDist);
+        this.approach(target, opts);
       }
     },
 
-    flee(hostiles) {
+    flee(hostiles, opts) {
       if (!hostiles || hostiles.length === 0) return;
+
+      // Average hostile position
       let ax = 0;
       let ay = 0;
       for (const h of hostiles) {
@@ -145,11 +206,39 @@ export function createSmartMoveStrategy() {
       ax /= hostiles.length;
       ay /= hostiles.length;
 
-      const dx = character.real_x - ax;
-      const dy = character.real_y - ay;
+      // Determine preferred flee direction
+      let dx, dy;
+      if (opts?.partyPositions?.length > 0) {
+        // Flee toward party centroid
+        let cx = 0;
+        let cy = 0;
+        for (const p of opts.partyPositions) { cx += p.x; cy += p.y; }
+        cx /= opts.partyPositions.length;
+        cy /= opts.partyPositions.length;
+        dx = cx - character.real_x;
+        dy = cy - character.real_y;
+      } else {
+        // Flee away from hostiles
+        dx = character.real_x - ax;
+        dy = character.real_y - ay;
+      }
+
       const len = Math.sqrt(dx * dx + dy * dy) || 1;
+      dx /= len;
+      dy /= len;
       const step = character.speed * (COMBAT_DELAY / 1000);
-      move(character.real_x + (dx / len) * step, character.real_y + (dy / len) * step);
+
+      // Try preferred direction, then iterate angles if blocked
+      for (const angle of FLEE_ANGLES) {
+        const r = rotateVector(dx, dy, angle);
+        const destX = character.real_x + r.x * step;
+        const destY = character.real_y + r.y * step;
+        if (can_move_to(destX, destY)) {
+          move(destX, destY);
+          return;
+        }
+      }
+      // Completely cornered — no valid direction found this tick
     },
   };
 }
@@ -175,6 +264,8 @@ export function createMovement(ctx, strategy) {
   let retryCount = 0;
   let retryTimer = null;
   let nullTargetTicks = 0;
+  let fleeCornerCount = 0;
+  let townTeleported = false;
   const isMerchant = ctx.config.roster?.self?.isMerchant;
 
   function cancelTravel() {
@@ -187,6 +278,19 @@ export function createMovement(ctx, strategy) {
       closeStand();
       ctx.logger.debug('movement', 'Closed stand before movement');
     }
+  }
+
+  /**
+   * Build opts object for strategy methods with party positions and farm boundary.
+   */
+  function buildOpts() {
+    const partyPositions = (ctx.world?.partyMembers || [])
+      .filter(m => m.name !== character.name)
+      .map(m => ({ x: m.real_x ?? m.x, y: m.real_y ?? m.y }));
+
+    const boundary = ctx.objective?.location?.boundary || null;
+
+    return { farmBoundary: boundary, partyPositions };
   }
 
   function detectMode() {
@@ -228,6 +332,7 @@ export function createMovement(ctx, strategy) {
 
   function tickFlee() {
     if (character.hp / character.max_hp > ctx.config.thresholds.fleeHpPercent * 1.5) {
+      fleeCornerCount = 0;
       ctx.logger.info('movement', 'Flee ended — HP recovered');
       return null;
     }
@@ -238,11 +343,34 @@ export function createMovement(ctx, strategy) {
       ...(ctx.world.hostileMonsters || []),
       ...(ctx.world.hostilePlayers || []),
     ];
+    const opts = buildOpts();
+
+    // Track pre-move position to detect if flee produced movement
+    const preX = character.real_x;
+    const preY = character.real_y;
+
     try {
-      strategy.flee(hostiles);
+      strategy.flee(hostiles, opts);
     } catch (e) {
       ctx.logger.error('movement', `flee error: ${e.message}`);
     }
+
+    // If character didn't move (cornered), increment counter
+    if (character.real_x === preX && character.real_y === preY) {
+      fleeCornerCount++;
+      if (fleeCornerCount >= 5) {
+        try {
+          use('town');
+          ctx.logger.warn('movement', 'Emergency town teleport — cornered while fleeing');
+        } catch (e) {
+          ctx.logger.error('movement', `Town teleport failed: ${e.message}`);
+        }
+        fleeCornerCount = 0;
+      }
+    } else {
+      fleeCornerCount = 0;
+    }
+
     return { delay: 100 };
   }
 
@@ -260,22 +388,22 @@ export function createMovement(ctx, strategy) {
       const attacker = findNearestHostileTargetingMe();
       if (attacker) {
         try {
-          strategy.kite(target, attacker);
+          strategy.kite(target, attacker, { ...buildOpts(), rangeBuffer: 0.9 });
         } catch (e) {
           ctx.logger.error('movement', `kite error: ${e.message}`);
         }
       } else {
         // Being targeted but can't find attacker — approach target
         const dist = distance(character, target);
-        if (dist > character.range) {
-          try { strategy.approach(target); } catch (e) { ctx.logger.debug('movement', `approach fallback failed: ${e.message}`); }
+        if (dist > character.range * 0.8) {
+          try { strategy.approach(target, { ...buildOpts(), rangeBuffer: 0.8 }); } catch (e) { ctx.logger.debug('movement', `approach fallback failed: ${e.message}`); }
         }
       }
     } else {
       const dist = distance(character, target);
-      if (dist > character.range) {
+      if (dist > character.range * 0.8) {
         try {
-          strategy.approach(target);
+          strategy.approach(target, { ...buildOpts(), rangeBuffer: 0.8 });
         } catch (e) {
           ctx.logger.error('movement', `approach error: ${e.message}`);
         }
@@ -315,6 +443,7 @@ export function createMovement(ctx, strategy) {
       travelPromise = null;
       destination = null;
       retryCount = 0;
+      townTeleported = false;
       try { cruise(500); } catch (e) { /* reset cruise */ }
       if (isMerchant) {
         openStand();
@@ -325,9 +454,25 @@ export function createMovement(ctx, strategy) {
       retryCount++;
       try { cruise(500); } catch (e2) { /* reset cruise */ }
       if (retryCount > 3) {
-        ctx.logger.error('movement', `Travel failed after 3 retries: ${e?.message || e}`);
-        destination = null;
-        retryCount = 0;
+        if (!townTeleported) {
+          try {
+            use('town');
+            ctx.logger.warn('movement', 'Town teleport after 3 travel failures');
+            townTeleported = true;
+            retryCount = 0;
+            retryTimer = Date.now() + 3000;
+          } catch (e2) {
+            ctx.logger.error('movement', `Town teleport failed: ${e2.message}`);
+            destination = null;
+            retryCount = 0;
+            townTeleported = false;
+          }
+        } else {
+          ctx.logger.error('movement', `Travel failed after retries + town teleport: ${e?.message || e}`);
+          destination = null;
+          retryCount = 0;
+          townTeleported = false;
+        }
       } else {
         ctx.logger.warn('movement', `Travel failed (attempt ${retryCount}/3), retrying in 2s`);
         retryTimer = Date.now() + 2000;
@@ -344,6 +489,9 @@ export function createMovement(ctx, strategy) {
       if (newMode !== mode) {
         if (mode === 'travel' && newMode !== 'travel' && travelPromise) {
           cancelTravel();
+        }
+        if (mode === 'flee' && newMode !== 'flee') {
+          fleeCornerCount = 0;
         }
         mode = newMode;
       }
@@ -377,6 +525,8 @@ export function createMovement(ctx, strategy) {
     retryCount = 0;
     retryTimer = null;
     nullTargetTicks = 0;
+    fleeCornerCount = 0;
+    townTeleported = false;
   }
 
   return {

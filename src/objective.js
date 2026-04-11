@@ -12,48 +12,9 @@ import {
   depositJunk, retrieveItem, getGoldBaseline, updateGoldBaseline,
   countItem, catalogInventory, tradeSell,
 } from './utils.js';
+import { findMonsterLocation, findNPCLocation, resolveLocation } from './location.js';
 
-/**
- * Looks up a monster type's spawn location from the game's static data (`G.maps`).
- * Returns the center of the first matching spawn boundary.
- *
- * @param {string} monsterType - Monster type key (e.g. 'bee', 'crab')
- * @returns {{ coord: { x: number, y: number, map: string } } | null}
- */
-function findMonsterLocation(monsterType) {
-  if (!G || !G.maps) return null;
-
-  for (const mapName in G.maps) {
-    const mapData = G.maps[mapName];
-    if (!mapData.monsters) continue;
-
-    for (const pack of mapData.monsters) {
-      if (pack.type === monsterType) {
-        if (pack.boundary) {
-          const [x1, y1, x2, y2] = pack.boundary;
-          return {
-            coord: {
-              x: Math.round((x1 + x2) / 2),
-              y: Math.round((y1 + y2) / 2),
-              map: mapName,
-            },
-          };
-        }
-        if (pack.boundaries && pack.boundaries.length > 0) {
-          const [x1, y1, x2, y2] = pack.boundaries[0];
-          return {
-            coord: {
-              x: Math.round((x1 + x2) / 2),
-              y: Math.round((y1 + y2) / 2),
-              map: mapName,
-            },
-          };
-        }
-      }
-    }
-  }
-  return null;
-}
+// findMonsterLocation imported from location.js
 
 /**
  * Creates a hunter strategy that farms a configured monster type.
@@ -165,33 +126,7 @@ export function createHunterStrategy() {
   };
 }
 
-// ---------------------------------------------------------------------------
-//  NPC Location Helpers
-// ---------------------------------------------------------------------------
-
-/** Finds bank NPC location from G data. */
-function findBankLocation() {
-  if (!G?.maps?.main?.npcs) return null;
-  for (const npc of G.maps.main.npcs) {
-    if (npc.id === 'secondhands' || npc.id === 'items0') continue;
-    if (G.npcs[npc.id]?.role === 'banker') {
-      return { coord: { x: npc.position?.[0] || 0, y: npc.position?.[1] || 0, map: 'main' } };
-    }
-  }
-  // Fallback: known bank area on main
-  return { coord: { x: 0, y: -400, map: 'main' } };
-}
-
-/** Finds Ponty NPC location from G data. */
-function findPontyLocation() {
-  if (!G?.maps?.main?.npcs) return null;
-  for (const npc of G.maps.main.npcs) {
-    if (npc.id === 'secondhands') {
-      return { coord: { x: npc.position?.[0] || 0, y: npc.position?.[1] || 0, map: 'main' } };
-    }
-  }
-  return { coord: { x: -129, y: -68, map: 'main' } };
-}
+// NPC location helpers moved to location.js — use findNPCLocation(id) and resolveLocation()
 
 /** Reads a hunter's status snapshot from localStorage. */
 function readHunterStatus(name) {
@@ -288,7 +223,7 @@ export function createMerchantStrategy() {
           if (snap?.needsResupply && snap.alive) {
             if (current.type !== 'restock') {
               return {
-                type: 'restock', target: name, location: findBankLocation(),
+                type: 'restock', target: name, location: resolveLocation('bank'),
                 step: MERCHANT_STEPS.restock[0], stepComplete: false,
               };
             }
@@ -310,7 +245,7 @@ export function createMerchantStrategy() {
           if (current.type !== 'upgrade') {
             return {
               type: 'upgrade', target: item.name,
-              location: findBankLocation(),
+              location: resolveLocation('bank'),
               step: MERCHANT_STEPS.upgrade[0], stepComplete: false,
             };
           }
@@ -323,7 +258,7 @@ export function createMerchantStrategy() {
       if (sellable.length > 5) {
         if (current.type !== 'sell') {
           return {
-            type: 'sell', target: null, location: findPontyLocation(),
+            type: 'sell', target: null, location: findNPCLocation('secondhands'),
             step: MERCHANT_STEPS.sell[0], stepComplete: false,
           };
         }
@@ -363,16 +298,16 @@ export function createMerchantStrategy() {
       // Set location for travel steps
       let location = current.location;
       if (nextStep === 'travel-to-bank') {
-        location = findBankLocation();
+        location = resolveLocation('bank');
       } else if (nextStep === 'travel-to-ponty') {
-        location = findPontyLocation();
+        location = findNPCLocation('secondhands');
       } else if (nextStep === 'travel-to-party') {
         const snap = readHunterStatus(current.target);
         if (snap) {
           location = { coord: { x: snap.x, y: snap.y, map: snap.map } };
         }
       } else if (nextStep === 'travel-to-npc') {
-        location = findBankLocation(); // upgrade NPC near bank area
+        location = resolveLocation('bank'); // upgrade NPC near bank area
       }
 
       return { type: current.type, target: current.target, location, step: nextStep };

@@ -45,7 +45,8 @@ All contracts reference [game-api.md](../game-api.md) for game function semantic
 | `attack.md` | Attack | Phase 2 | Authored | R12 |
 | `combat-skills.md` | Combat Skills | Phase 2 | Revised | R40, R41 |
 | `potion-regen.md` | Potion/Regen | Phase 2 | Revised | R13 |
-| `movement.md` | Movement | Phase 2 | Revised | R9, R10, R51, R52 |
+| `movement.md` | Movement | Phase 2 | Revised | R9, R10, R12, R33, R34, R51, R52 |
+| `location.md` | Location (utility) | Phase 2 | Authored | R33, R34 |
 | `objective.md` | Objective | Phase 3 | Revised | R15, R16, R21-R31, R37, R51-R58 |
 | `party.md` | Party | Phase 3 | Revised | R7, R8, R51, R55 |
 | `trade.md` | Trade | Phase 3 | Authored | R28, R55 |

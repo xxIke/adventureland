@@ -184,6 +184,39 @@ getClassWeaponTypes(ctype?)
   Returns: object — { [slot]: string[] } mapping slot names to valid item types
 ```
 
+### Location/Navigation Utilities
+
+Used by: Objective (primary), potentially other systems
+
+Centralized location resolution from game data. Implemented in `src/location.js` — see `docs/contracts/location.md` for full contract. `findNPCLocation(npcId)` is the single interface for all NPC lookups — no per-NPC convenience wrappers.
+
+```
+resolveLocation(destination)
+  Intent: Unified entry point for location resolution. Accepts NPC id, monster type, keyword, or {x,y,map}.
+  Params: destination (string | object) — NPC id, monster type, keyword ("bank", "upgrade"), or coordinate object
+  Returns: { coord: { x, y, map } } or null
+
+findNPCLocation(npcId)
+  Intent: Locate any NPC by id from G.maps data. Single interface for all NPC lookups.
+  Params: npcId (string) — NPC identifier (e.g., 'secondhands', 'goldnpc')
+  Returns: { coord: { x, y, map } } or null
+
+findMonsterLocation(monsterType)
+  Intent: Locate primary spawn location for a monster type from G.maps.
+  Params: monsterType (string) — monster type key (e.g., 'bee', 'crab')
+  Returns: { coord: { x, y, map } } or null
+
+getMonsterSpawns(monsterType)
+  Intent: Get all spawn locations for a monster type across all maps with boundary data (R33).
+  Params: monsterType (string) — monster type key
+  Returns: Array<{ coord, boundary, count }> — empty if not found
+
+getMapTransitions(mapName)
+  Intent: Get available transitions (doors, transporters) from a map (R34 foundation).
+  Params: mapName (string) — map identifier
+  Returns: Array<{ type, position, targetMap, targetSpawn }> — empty if not found
+```
+
 ### Movement/Position Utilities
 
 Used by: Movement, Objective
